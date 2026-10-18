@@ -64,6 +64,7 @@ const T_SHAPE = [
 ];
 const FRONT = c => ({ face: { n: [0, -1, 0], c } });
 const SIDE_BLOCK = block(30, 10, 20);
+const TOP_HOLE = { type: 'hole', id: 'h1', face: top(20), x: 10, y: 0, d: 6, depth: 0 };
 
 export const LESSONS = [
   {
@@ -248,16 +249,12 @@ export const LESSONS = [
     steps: [made('extrude', 1), made('extrude', 2), matches],
   },
   {
-    // 45° rule: gussets (45° wedges) under the T's arms remove the overhang.
+    // 45° rule: standing, the T's arms overhang; laid on its front it prints clean. Orientation first.
     id: 'print-rule',
     course: 'print',
     start: T_SHAPE,
-    goal: [
-      ...T_SHAPE,
-      { type: 'sketch', id: 's3', plane: FRONT([0, -5, 12]), shapes: [poly([5, 10], [15, 20], [5, 20]), poly([-5, 10], [-5, 20], [-15, 20])] },
-      { type: 'extrude', id: 'e3', sketch: 's3', distance: -10, op: 'join' },
-    ],
-    steps: [printOn, made('sketch', 1), s => s.match && printClean(s)],
+    goal: T_SHAPE,
+    steps: [printOn, printClean],
   },
   {
     // Orientation: the table upside down needs no supports.
@@ -268,17 +265,20 @@ export const LESSONS = [
     steps: [printOn, printClean],
   },
   {
-    // A round hole on its side has an overhanging top; a diamond has only 45° walls.
+    // Holes in two directions: whichever way it lies, one is sideways, so turning can't help.
+    // The sideways one becomes a diamond (only 45° walls), which prints clean in any direction.
     id: 'print-holes',
     course: 'print',
-    start: [...SIDE_BLOCK, { type: 'hole', id: 'h1', face: FRONT([0, -5, 10]).face, x: 0, y: 10, d: 10, depth: 0 }],
+    start: [...SIDE_BLOCK, TOP_HOLE, { type: 'hole', id: 'h2', face: FRONT([0, -5, 10]).face, x: 0, y: 10, d: 10, depth: 0 }],
     goal: [
       ...SIDE_BLOCK,
+      TOP_HOLE,
       { type: 'sketch', id: 's2', plane: FRONT([0, -5, 10]), shapes: [poly([5, 10], [0, 15], [-5, 10], [0, 5])] },
       { type: 'extrude', id: 'e2', sketch: 's2', distance: -10, op: 'cut' },
     ],
-    steps: [printOn, s => s.mode === 'model' && !s.features.some(f => f.type === 'hole'),
-      s => s.mode === 'model' && s.features.filter(f => f.type === 'sketch').length >= 2, s => s.match && printClean(s)],
+    steps: [printOn, s => !s.print?.on,
+      s => s.mode === 'model' && s.features.filter(f => f.type === 'hole').length === 1 && s.features.filter(f => f.type === 'sketch').length >= 2,
+      s => s.match && printClean(s)],
   },
   {
     // Find the face to lay the bookshelf on (its back) so no shelf has a ceiling.

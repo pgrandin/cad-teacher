@@ -41,9 +41,9 @@ const expected = {
   'spin-wheel': PI * 36 * 6 + PI * (324 - 144) * 6 + 6 * 4 * integrate(y => Math.sqrt(144 - y * y) - Math.sqrt(36 - y * y), -1.5, 1.5) - PI * 1.75 ** 2 * 6,
   'spin-brick': 32 * 16 * 10 + 8 * PI * 2.5 ** 2 * 2,
   'spin-button': PI * 100 * 3 - 4 * PI * 1 * 3,
-  'print-rule': 10 * 10 * 20 + 30 * 10 * 4 + 2 * (10 * 10 / 2) * 10,
+  'print-rule': 10 * 10 * 20 + 30 * 10 * 4,
   'print-flip': 4 * PI * 9 * 40 + 80 * 50 * 4 - 4 * (25 - 25 * PI / 4) * 4,
-  'print-holes': 30 * 10 * 20 - 50 * 10,
+  'print-holes': 30 * 10 * 20 - PI * 9 * 20 - 50 * 10,
   'print-shelf': 50 * 20 * 70 - 3 * 44 * 18 * 16,
 };
 
@@ -126,12 +126,15 @@ assert.deepEqual(poses(comps, twice).errors, { j2: 'err.jointPlaced' });
 const goalOf = id => LESSONS.find(l => l.id === id);
 const TABLE_GOAL = () => goalOf('elf-table').goal;
 const hang = (fs, n) => { const f = cad.meshOf(cad.rebuild(fs).body).faces; return overhangs(f, printMatrix(f, n)).area; };
-near(hang(goalOf('print-rule').start), 200);                 // the T's arms
-assert.ok(hang(goalOf('print-rule').goal) < 0.01, 'gussets at 45° print clean');
+near(hang(goalOf('print-rule').start), 200);                 // the T's arms, standing up
+assert.ok(hang(goalOf('print-rule').start, [0, -1, 0]) < 0.01, 'T lying on its front prints clean');
 assert.ok(hang(goalOf('print-flip').start) > 3000, 'table on its legs: whole top overhangs');
 assert.ok(hang(goalOf('print-flip').start, [0, 0, 1]) < 0.01, 'table upside down prints clean');
-assert.ok(hang(goalOf('print-holes').start) > 50, 'round hole on its side has a ceiling');
-assert.ok(hang(goalOf('print-holes').goal) < 0.01, 'diamond hole prints clean');
+const twoHoles = goalOf('print-holes');
+assert.ok(hang(twoHoles.start) > 50, 'standing: the front hole is sideways');
+assert.ok(hang(twoHoles.start, [0, -1, 0]) > 20, 'on its front: now the top hole is sideways');
+assert.ok(hang(twoHoles.start, [0, 0, 1]) > 50, 'upside down: the front hole is sideways again');
+assert.ok(hang(twoHoles.goal) < 0.01 && hang(twoHoles.goal, [0, 0, 1]) < 0.01, 'with a diamond it prints clean');
 assert.ok(hang(goalOf('print-shelf').start, [0, 1, 0]) < 0.01, 'bookshelf on its back prints clean');
 assert.ok(hang(goalOf('print-shelf').start, [0, -1, 0]) > 1000, 'bookshelf on its front does not');
 // Exported STL placement: upside-down table rests on z = 0 with its top down.
