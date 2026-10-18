@@ -355,7 +355,7 @@ export default {
   'pattern.ny': 'Nombre en Y',
   'pattern.dy': 'Espacement Y (mm)',
   'pattern.n': 'Nombre',
-  'hint.revolve': 'Choisis l’esquisse et l’axe autour duquel elle tourne. 360° fait un tour complet.',
+  'hint.revolve': 'Clique sur une ligne pour en faire l’axe autour duquel l’esquisse tourne. 360° fait un tour complet.',
   'hint.pattern': 'Choisis la fonction à copier, puis combien de copies et à quelle distance.',
   'err.zeroAngle': 'L’angle ne peut pas être 0',
   'err.patternPick': 'Choisis une fonction à copier',
@@ -371,7 +371,7 @@ export default {
   'lesson.spin-pawn.steps': [
     'Clique sur <b>Créer une esquisse</b> et choisis le plan <b>XZ</b> (le mur du fond). Sa ligne verticale est l’axe autour duquel le pion va tourner.',
     'Dessine la moitié du pion : un <b>Rectangle</b> Centre <b>6</b>, <b>2</b>, Largeur <b>12</b>, Hauteur <b>4</b> (le socle), un <b>Rectangle</b> Centre <b>2,5</b>, <b>12</b>, Largeur <b>5</b>, Hauteur <b>16</b> (le corps), et un <b>Cercle</b> Centre <b>0</b>, <b>25</b>, Diamètre <b>12</b> (la tête). Clique sur <b>Terminer l’esquisse</b>.',
-    'Clique sur <b>Révolution</b>. Axe <b>Vertical</b>, Angle <b>360</b>. Clique sur <b>OK</b>.',
+    'Clique sur <b>Révolution</b>. L’<b>Axe</b> est la ligne autour de laquelle l’esquisse tourne : clique sur la ligne verticale qui traverse le pion. Angle <b>360</b>. Clique sur <b>OK</b>.',
   ],
   'lesson.spin-pawn.outro': 'Le cercle traverse l’axe : seule sa moitié droite tourne, et elle devient une boule. Dans Fusion, Révolution est dans SOLIDE → CRÉER, juste à côté d’Extrusion.',
   'lesson.spin-wheel.title': 'Roue de robot',

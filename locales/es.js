@@ -355,7 +355,7 @@ export default {
   'pattern.ny': 'Cantidad en Y',
   'pattern.dy': 'Separación Y (mm)',
   'pattern.n': 'Cantidad',
-  'hint.revolve': 'Elige el boceto y el eje alrededor del que gira. 360° es una vuelta completa.',
+  'hint.revolve': 'Haz clic en una línea para que sea el eje alrededor del que gira el boceto. 360° es una vuelta completa.',
   'hint.pattern': 'Elige la operación a copiar, luego cuántas copias y a qué distancia.',
   'err.zeroAngle': 'El ángulo no puede ser 0',
   'err.patternPick': 'Elige una operación a copiar',
@@ -371,7 +371,7 @@ export default {
   'lesson.spin-pawn.steps': [
     'Haz clic en <b>Crear boceto</b> y elige el plano <b>XZ</b> (la pared del fondo). Su línea vertical es el eje alrededor del que girará el peón.',
     'Dibuja medio peón: un <b>Rectángulo</b> Centro <b>6</b>, <b>2</b>, Ancho <b>12</b>, Alto <b>4</b> (la base), un <b>Rectángulo</b> Centro <b>2,5</b>, <b>12</b>, Ancho <b>5</b>, Alto <b>16</b> (el cuerpo) y un <b>Círculo</b> Centro <b>0</b>, <b>25</b>, Diámetro <b>12</b> (la cabeza). Haz clic en <b>Terminar boceto</b>.',
-    'Haz clic en <b>Revolución</b>. Eje <b>Vertical</b>, Ángulo <b>360</b>. Haz clic en <b>Aceptar</b>.',
+    'Haz clic en <b>Revolución</b>. El <b>Eje</b> es la línea alrededor de la que gira el boceto: haz clic en la línea vertical que atraviesa el peón. Ángulo <b>360</b>. Haz clic en <b>Aceptar</b>.',
   ],
   'lesson.spin-pawn.outro': 'El círculo cruza el eje: solo gira su mitad derecha, y se convierte en una bola. En Fusion, Revolución está en SÓLIDO → CREAR, al lado de Extruir.',
   'lesson.spin-wheel.title': 'Rueda de robot',

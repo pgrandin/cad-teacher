@@ -80,6 +80,7 @@ const M = {
   sketchSel: fatMat(0xe65100, 3),
   draft: fatMat(0x42a5f5, 2),
   goal: fatMat(0xff8a00, 2, 0.6),
+  axis: fatMat(0x37474f, 2.5),
   // Differences show through the part (depthTest off), so a misplaced hole reads as red + green.
   missing: new THREE.MeshBasicMaterial({ color: 0x2ecc71, transparent: true, opacity: 0.55, depthTest: false, side: THREE.DoubleSide }),
   extra: new THREE.MeshBasicMaterial({ color: 0xe74c3c, transparent: true, opacity: 0.55, depthTest: false, side: THREE.DoubleSide }),
@@ -95,6 +96,10 @@ const fat = (positions, mat) => {
   l.renderOrder = 10;
   return l;
 };
+
+// A sketch's axes in the colors of the origin axes (X red, Y green, Z blue), gray on a slanted face.
+const axisMats = {};
+const axisMat = d => (axisMats[d.map(Math.round)] ||= fatMat([0xe53935, 0x43a047, 0x1e88e5][d.findIndex(v => Math.abs(v) > 0.99)] ?? 0x78909c, 1.5));
 
 const shownGroup = new THREE.Group(), hlGroup = new THREE.Group(), sketchGroup = new THREE.Group(), goalGroup = new THREE.Group(), diffGroup = new THREE.Group();
 scene.add(shownGroup, hlGroup, sketchGroup, goalGroup, diffGroup, printGroup, bed);
@@ -221,6 +226,8 @@ function drawSketches() {
   if (sketch) {
     const g = planeGroup(sketch.plane);
     g.add(sketchGrid);
+    const pl = sketch.plane;
+    for (const [pos, d] of [[[-100, 0, 0, 100, 0, 0], pl.u], [[0, -100, 0, 0, 100, 0], pl.v]]) g.add(Object.assign(fat(pos, axisMat(d)), { renderOrder: 9 }));
     addShapes(g, sketch.feature.shapes, sketch.sel);
     const d = draftShape();
     if (d) g.add(fat(d.closed ? loopSegs(d.pts) : pathSegs(d.pts), M.draft));
@@ -242,9 +249,16 @@ function drawSketches() {
   }
 }
 
+// Revolve spins around one of the sketch's two axes (Fusion: Axis selection). Shown as lines to click.
+function revolveAxes() {
+  const pl = cmd?.feature.type === 'revolve' && cmd.before.planes[cmd.feature.sketch];
+  return pl ? [['v', pl.v], ['h', pl.u]].map(([id, d]) => ({ id, pos: [-60, 60].flatMap(k => pl.o.map((o, i) => o + k * d[i])) })) : [];
+}
+
 function drawHighlights() {
   clear(hlGroup);
   originPlanes.forEach(p => (p.material.opacity = hover?.kind === 'plane' && hover.id === p.userData.base ? 0.5 : 0.22));
+  for (const a of revolveAxes()) hlGroup.add(fat(a.pos, hover?.kind === 'axis' && hover.id === a.id ? M.hoverEdge : cmd.feature.axis === a.id ? M.selEdge : M.axis));
   if (!picker) return;
   if (cmd?.sel) for (const id of cmd.sel.keys()) {
     const pos = edgePositions(id);
@@ -502,6 +516,13 @@ function setRay(e) {
 }
 
 function pick(e) {
+  const axes = revolveAxes();
+  if (axes.length) {
+    setRay(e);
+    const tol = viewHeight() * 0.016;
+    const near = axes.map(a => ({ id: a.id, d: ray.ray.distanceSqToSegment(V(a.pos.slice(0, 3)), V(a.pos.slice(3))) })).sort((a, b) => a.d - b.d)[0];
+    return near.d < tol * tol ? { kind: 'axis', id: near.id } : null;
+  }
   const choosing = pickingPlane || sketch?.picking;
   const wantEdge = !!cmd?.sel, wantFace = choosing || printMode || cmd?.feature.type === 'hole';
   if (!wantEdge && !wantFace) return null;
@@ -533,6 +554,7 @@ function modelClick(e) {
   const h = pick(e);
   if (!h) return;
   if (printMode) { printDown = h.ref.n; hover = null; refresh(); return home(); } // lay this face on the bed
+  if (h.kind === 'axis') { cmd.feature.axis = h.id; updatePreview(); return refresh(); }
   const plane = h.kind === 'plane' ? { base: h.id } : { face: h.ref };
   if (pickingPlane) return enterSketch(features.length, { type: 'sketch', id: 'u' + ++uid, plane, shapes: [] });
   if (sketch) {

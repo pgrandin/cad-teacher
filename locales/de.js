@@ -355,7 +355,7 @@ export default {
   'pattern.ny': 'Anzahl in Y',
   'pattern.dy': 'Abstand Y (mm)',
   'pattern.n': 'Anzahl',
-  'hint.revolve': 'Wähle die Skizze und die Achse, um die sie sich dreht. 360° ist eine ganze Umdrehung.',
+  'hint.revolve': 'Klicke auf eine Linie, um sie zur Achse zu machen, um die sich die Skizze dreht. 360° ist eine ganze Umdrehung.',
   'hint.pattern': 'Wähle das Feature zum Kopieren, dann wie viele Kopien und mit welchem Abstand.',
   'err.zeroAngle': 'Der Winkel darf nicht 0 sein',
   'err.patternPick': 'Wähle ein Feature zum Kopieren',
@@ -371,7 +371,7 @@ export default {
   'lesson.spin-pawn.steps': [
     'Klicke auf <b>Skizze erstellen</b> und wähle die <b>XZ</b>-Ebene (die hintere Wand). Ihre senkrechte Linie ist die Achse, um die sich der Bauer dreht.',
     'Zeichne den halben Bauern: ein <b>Rechteck</b> Mitte <b>6</b>, <b>2</b>, Breite <b>12</b>, Höhe <b>4</b> (Fuß), ein <b>Rechteck</b> Mitte <b>2,5</b>, <b>12</b>, Breite <b>5</b>, Höhe <b>16</b> (Körper) und einen <b>Kreis</b> Mitte <b>0</b>, <b>25</b>, Durchmesser <b>12</b> (Kopf). Klicke auf <b>Skizze fertig stellen</b>.',
-    'Klicke auf <b>Drehung</b>. Achse <b>Senkrecht</b>, Winkel <b>360</b>. Klicke auf <b>OK</b>.',
+    'Klicke auf <b>Drehung</b>. Die <b>Achse</b> ist die Linie, um die sich die Skizze dreht: Klicke auf die senkrechte Linie durch die Spielfigur. Winkel <b>360</b>. Klicke auf <b>OK</b>.',
   ],
   'lesson.spin-pawn.outro': 'Der Kreis geht über die Achse: Nur seine rechte Hälfte wird gedreht, und daraus wird eine Kugel. In Fusion findest du Drehung unter VOLUMENKÖRPER → ERSTELLEN, gleich neben Extrusion.',
   'lesson.spin-wheel.title': 'Roboterrad',

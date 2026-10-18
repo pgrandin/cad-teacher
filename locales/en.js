@@ -357,7 +357,7 @@ export default {
   'pattern.ny': 'Count along Y',
   'pattern.dy': 'Spacing Y (mm)',
   'pattern.n': 'Count',
-  'hint.revolve': 'Pick the sketch and the axis it spins around. 360° makes a full turn.',
+  'hint.revolve': 'Click a line to make it the axis the sketch spins around. 360° makes a full turn.',
   'hint.pattern': 'Pick the feature to copy, then how many copies and how far apart.',
   'err.zeroAngle': 'Angle can\'t be 0',
   'err.patternPick': 'Pick a feature to copy',
@@ -373,7 +373,7 @@ export default {
   'lesson.spin-pawn.steps': [
     'Click <b>Create Sketch</b> and pick the <b>XZ</b> plane (the back wall). Its vertical line is the axis the pawn will spin around.',
     'Draw half the pawn: a <b>Rectangle</b> Center <b>6</b>, <b>2</b>, Width <b>12</b>, Height <b>4</b> (base), a <b>Rectangle</b> Center <b>2.5</b>, <b>12</b>, Width <b>5</b>, Height <b>16</b> (body), and a <b>Circle</b> Center <b>0</b>, <b>25</b>, Diameter <b>12</b> (head). Click <b>Finish Sketch</b>.',
-    'Click <b>Revolve</b>. Axis <b>Vertical</b>, Angle <b>360</b>. Click <b>OK</b>.',
+    'Click <b>Revolve</b>. The <b>Axis</b> is the line the sketch spins around: click the vertical line through the pawn. Angle <b>360</b>. Click <b>OK</b>.',
   ],
   'lesson.spin-pawn.outro': 'The circle crosses the axis, so only its right half is spun, and it becomes a ball. In Fusion, Revolve is in SOLID → CREATE, right next to Extrude.',
   'lesson.spin-wheel.title': 'Robot wheel',
