@@ -7,6 +7,7 @@ import { LineSegmentsGeometry } from './vendor/LineSegmentsGeometry.js';
 import { LineMaterial } from './vendor/LineMaterial.js';
 import * as cad from './cad.js';
 import { LESSONS, CHALLENGES } from './lessons.js';
+import { t, tn, lang, setLang, LANGS } from './i18n.js';
 
 const $ = s => document.querySelector(s);
 const V = a => new THREE.Vector3(...a);
@@ -245,10 +246,10 @@ function home() {
 function lookAtPlane(pl) {
   const { c, r } = fitView(sketch.before.body);
   const k = dot(c.map((v, i) => v - pl.o[i]), pl.n);
-  const t = c.map((v, i) => v - k * pl.n[i]); // body center, dropped onto the sketch plane
+  const target = c.map((v, i) => v - k * pl.n[i]); // body center, dropped onto the sketch plane
   camera.up.copy(V(pl.v));
-  controls.target.set(...t);
-  camera.position.copy(V(t)).addScaledVector(V(pl.n), Math.max(r, 40) * 3.6);
+  controls.target.set(...target);
+  camera.position.copy(V(target)).addScaledVector(V(pl.n), Math.max(r, 40) * 3.6);
   controls.update();
   draw();
 }
@@ -259,8 +260,8 @@ function sketchControls(on) {
 $('#home').onclick = () => (sketch ? lookAtPlane(sketch.plane) : home());
 
 // ---------- timeline actions ----------
-const LABEL = { sketch: 'Sketch', extrude: 'Extrude', fillet: 'Fillet', chamfer: 'Chamfer', hole: 'Hole' };
-const nameAt = (i, type) => LABEL[type] + (features.slice(0, i).filter(f => f.type === type).length + 1);
+// Timeline names like Fusion: Sketch1, Extrude2... in the current language.
+const nameAt = (i, type) => t(`feature.${type}`) + (features.slice(0, i).filter(f => f.type === type).length + 1);
 const pushUndo = () => { undoStack.push(structuredClone(features)); if (undoStack.length > 50) undoStack.shift(); };
 
 function rebuildAll() {
@@ -419,8 +420,8 @@ function pick(e) {
     const planeHit = pickingPlane && ray.intersectObjects(originPlanes)[0];
     return planeHit ? { kind: 'plane', id: planeHit.object.userData.base } : null;
   }
-  const t = meshHit.faceIndex * 3;
-  const g = picker.m.faces.faceGroups.find(g => t >= g.start && t < g.start + g.count);
+  const tri = meshHit.faceIndex * 3;
+  const g = picker.m.faces.faceGroups.find(g => tri >= g.start && tri < g.start + g.count);
   const ref = g && faceRefOf(g.faceId);
   return ref && { kind: 'face', id: g.faceId, ref, point: meshHit.point.toArray() };
 }
@@ -547,29 +548,29 @@ const ICON = {
   stl: svg('<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>'),
 };
 
-const toolBtn = (id, label, { on = false, disabled = false, key = '' } = {}) =>
-  `<button class="tool${on ? ' on' : ''}" data-tool="${id}"${disabled ? ' disabled' : ''} title="${label}${key ? ` (${key})` : ''}">${ICON[id]}<span>${label}</span></button>`;
-const group = (label, items) => `<div class="group"><div class="row">${items.join('')}</div><div class="glabel">${label}</div></div>`;
+const toolBtn = (id, { on = false, disabled = false, key = '' } = {}) =>
+  `<button class="tool${on ? ' on' : ''}" data-tool="${id}"${disabled ? ' disabled' : ''} title="${t(`tool.${id}`)}${key ? ` (${key})` : ''}">${ICON[id]}<span>${t(`tool.${id}`)}</span></button>`;
+const group = (id, items) => `<div class="group"><div class="row">${items.join('')}</div><div class="glabel">${t(`group.${id}`)}</div></div>`;
 
 function renderToolbar() {
-  $('#tab').textContent = sketch ? 'SKETCH' : 'SOLID';
-  const t = cmd?.feature.type, body = !!built.body;
+  $('#tab').textContent = t(sketch ? 'tab.sketch' : 'tab.solid');
+  const type = cmd?.feature.type, body = !!built.body;
   $('#tools').innerHTML = sketch
-    ? group('CREATE', [
-      toolBtn('line', 'Line', { on: sketch.tool === 'line', key: 'L' }),
-      toolBtn('rect', 'Rectangle', { on: sketch.tool === 'rect', key: 'R' }),
-      toolBtn('circle', 'Circle', { on: sketch.tool === 'circle', key: 'C' }),
-    ]) + group('FINISH', [toolBtn('finish', 'Finish Sketch')])
-    : group('CREATE', [
-      toolBtn('sketch', 'Create Sketch', { on: pickingPlane }),
-      toolBtn('extrude', 'Extrude', { on: t === 'extrude', disabled: !features.some(f => f.type === 'sketch'), key: 'E' }),
-      toolBtn('hole', 'Hole', { on: t === 'hole', disabled: !body, key: 'H' }),
-    ]) + group('MODIFY', [
-      toolBtn('fillet', 'Fillet', { on: t === 'fillet', disabled: !body, key: 'F' }),
-      toolBtn('chamfer', 'Chamfer', { on: t === 'chamfer', disabled: !body }),
-    ]) + group('FILE', [
-      toolBtn('undo', 'Undo', { disabled: !undoStack.length, key: 'Ctrl+Z' }),
-      toolBtn('stl', 'Export STL', { disabled: !body }),
+    ? group('create', [
+      toolBtn('line', { on: sketch.tool === 'line', key: 'L' }),
+      toolBtn('rect', { on: sketch.tool === 'rect', key: 'R' }),
+      toolBtn('circle', { on: sketch.tool === 'circle', key: 'C' }),
+    ]) + group('finish', [toolBtn('finish')])
+    : group('create', [
+      toolBtn('sketch', { on: pickingPlane }),
+      toolBtn('extrude', { on: type === 'extrude', disabled: !features.some(f => f.type === 'sketch'), key: 'E' }),
+      toolBtn('hole', { on: type === 'hole', disabled: !body, key: 'H' }),
+    ]) + group('modify', [
+      toolBtn('fillet', { on: type === 'fillet', disabled: !body, key: 'F' }),
+      toolBtn('chamfer', { on: type === 'chamfer', disabled: !body }),
+    ]) + group('file', [
+      toolBtn('undo', { disabled: !undoStack.length, key: 'Ctrl+Z' }),
+      toolBtn('stl', { disabled: !body }),
     ]);
 }
 $('#tools').addEventListener('click', e => {
@@ -577,28 +578,26 @@ $('#tools').addEventListener('click', e => {
   if (b) act(b.dataset.tool);
 });
 
-const num = (label, value, attrs) => `<label>${label}<input type="number" step="1" value="${value}" ${attrs}></label>`;
+const num = (label, value, attrs) => `<label>${t(label)}<input type="number" step="1" value="${value}" ${attrs}></label>`;
 const select = (label, k, value, options) =>
-  `<label>${label}<select data-k="${k}">${options.map(([v, t]) => `<option value="${v}"${v === value ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`;
-const SHAPE = {
-  rect: ['Rectangle', [['x', 'Center X'], ['y', 'Center Y'], ['w', 'Width'], ['h', 'Height']]],
-  circle: ['Circle', [['x', 'Center X'], ['y', 'Center Y'], ['d', 'Diameter']]],
-  poly: ['Line shape', []],
+  `<label>${t(label)}<select data-k="${k}">${options.map(([v, text]) => `<option value="${v}"${v === value ? ' selected' : ''}>${text}</option>`).join('')}</select></label>`;
+const SHAPE_FIELDS = {
+  rect: [['x', 'field.cx'], ['y', 'field.cy'], ['w', 'field.w'], ['h', 'field.h']],
+  circle: [['x', 'field.cx'], ['y', 'field.cy'], ['d', 'field.d']],
+  poly: [],
 };
 
 function renderDialog() {
   const el = $('#dialog');
   el.hidden = !sketch && !cmd;
   if (sketch) {
-    const rows = sketch.feature.shapes.map((s, i) => {
-      const [name, fields] = SHAPE[s.kind];
-      return `<fieldset data-i="${i}"${i === sketch.sel ? ' class="sel"' : ''}><legend>${name} ${i + 1}<button data-act="del-shape" data-i="${i}" title="Delete">✕</button></legend>` +
-        fields.map(([k, label]) => num(label, s[k], `data-i="${i}" data-k="${k}"`)).join('') +
-        (s.kind === 'poly' ? `<p class="note">${s.pts.length} corners</p>` : '') + '</fieldset>';
-    }).join('');
-    el.innerHTML = `<div class="dh">SKETCH<small>${nameAt(sketch.index, 'sketch')}</small></div>
-      <div class="db">${rows || '<p class="note">Nothing drawn yet. Pick Line, Rectangle or Circle in the toolbar.</p>'}</div>
-      <div class="df"><span></span><button data-act="finish" class="ok">Finish Sketch</button></div>`;
+    const rows = sketch.feature.shapes.map((s, i) =>
+      `<fieldset data-i="${i}"${i === sketch.sel ? ' class="sel"' : ''}><legend>${t(`shape.${s.kind}`)} ${i + 1}<button data-act="del-shape" data-i="${i}" title="${t('dlg.delete')}">✕</button></legend>` +
+      SHAPE_FIELDS[s.kind].map(([k, label]) => num(label, s[k], `data-i="${i}" data-k="${k}"`)).join('') +
+      (s.kind === 'poly' ? `<p class="note">${t('sketch.corners', { n: s.pts.length })}</p>` : '') + '</fieldset>').join('');
+    el.innerHTML = `<div class="dh">${t('tab.sketch')}<small>${nameAt(sketch.index, 'sketch')}</small></div>
+      <div class="db">${rows || `<p class="note">${t('sketch.empty')}</p>`}</div>
+      <div class="df"><span></span><button data-act="finish" class="ok">${t('tool.finish')}</button></div>`;
     return;
   }
   if (!cmd) return;
@@ -606,37 +605,36 @@ function renderDialog() {
   let body = '';
   if (f.type === 'extrude') {
     const sketches = features.slice(0, cmd.index).map((g, i) => [g, i]).filter(([g]) => g.type === 'sketch');
-    body = select('Profile', 'sketch', f.sketch, sketches.map(([g, i]) => [g.id, nameAt(i, 'sketch')])) +
-      num('Distance (mm)', f.distance, 'data-k="distance"') +
-      select('Operation', 'op', f.op, [['join', 'Join (add)'], ['cut', 'Cut (remove)']]);
+    body = select('extrude.profile', 'sketch', f.sketch, sketches.map(([g, i]) => [g.id, nameAt(i, 'sketch')])) +
+      num('extrude.distance', f.distance, 'data-k="distance"') +
+      select('extrude.operation', 'op', f.op, [['join', t('extrude.join')], ['cut', t('extrude.cut')]]);
   } else if (f.type === 'hole') {
-    body = `<p class="note">${f.face ? 'Face picked ✓ Click another face to move the hole.' : 'Click a flat face on the part.'}</p>` +
-      num('Position X', f.x, 'data-k="x"') + num('Position Y', f.y, 'data-k="y"') +
-      num('Diameter (mm)', f.d, 'data-k="d"') + num('Depth (0 = through)', f.depth, 'data-k="depth"');
+    body = `<p class="note">${t(f.face ? 'hole.picked' : 'hole.pick')}</p>` +
+      num('hole.x', f.x, 'data-k="x"') + num('hole.y', f.y, 'data-k="y"') +
+      num('hole.d', f.d, 'data-k="d"') + num('hole.depth', f.depth, 'data-k="depth"');
   } else {
-    body = `<p class="note">${cmd.sel.size} edge${cmd.sel.size === 1 ? '' : 's'} picked. Click edges on the part to add or remove them.</p>` +
-      num(f.type === 'fillet' ? 'Radius (mm)' : 'Distance (mm)', f.r, 'data-k="r" step="0.5"');
+    body = `<p class="note">${tn('edges.picked', cmd.sel.size)}</p>` + num(`${f.type}.r`, f.r, 'data-k="r" step="0.5"');
   }
   const isNew = cmd.index === features.length;
-  el.innerHTML = `<div class="dh">${LABEL[f.type].toUpperCase()}<small>${nameAt(cmd.index, f.type)}</small></div>
+  el.innerHTML = `<div class="dh">${t(`feature.${f.type}`).toLocaleUpperCase(lang)}<small>${nameAt(cmd.index, f.type)}</small></div>
     <div class="db">${body}<p class="err" id="cmderr"></p></div>
-    <div class="df">${isNew ? '' : '<button data-act="delete" class="danger">Delete</button>'}<span></span><button data-act="cancel">Cancel</button><button data-act="ok" class="ok" id="okbtn">OK</button></div>`;
+    <div class="df">${isNew ? '' : `<button data-act="delete" class="danger">${t('dlg.delete')}</button>`}<span></span><button data-act="cancel">${t('dlg.cancel')}</button><button data-act="ok" class="ok" id="okbtn">${t('dlg.ok')}</button></div>`;
   updateCmdError();
 }
 function updateCmdError() {
   if (!cmd) return;
-  const err = cmd.preview.errors[cmd.feature.id] || '';
-  $('#cmderr').textContent = err;
+  const err = cmd.preview.errors[cmd.feature.id];
+  $('#cmderr').textContent = err ? t(err) : '';
   $('#okbtn').disabled = !!err;
 }
 
 $('#dialog').addEventListener('input', e => {
-  const t = e.target, k = t.dataset.k;
+  const el = e.target, k = el.dataset.k;
   if (!k) return;
-  const v = t.tagName === 'SELECT' ? t.value : parseFloat(t.value);
+  const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
   if (Number.isNaN(v)) return; // half-typed, like "-"
   if (sketch) {
-    sketch.feature.shapes[+t.dataset.i][k] = v;
+    sketch.feature.shapes[+el.dataset.i][k] = v;
     drawSketches();
     checkLesson();
     draw();
@@ -669,33 +667,20 @@ function renderTimeline() {
   $('#chips').innerHTML = features.map((f, i) => {
     const err = built.errors[f.id], name = nameAt(i, f.type);
     const cls = ['chip', err && 'err', i === active && 'on', active >= 0 && i > active && 'rolled'].filter(Boolean).join(' ');
-    return `<button class="${cls}" data-i="${i}" title="${name}${err ? ': ' + err : ''} (click to edit)">${ICON[f.type]}<span>${name}</span></button>`;
-  }).join('') || '<span class="empty">Empty. Every feature you make lands here, in order.</span>';
+    return `<button class="${cls}" data-i="${i}" title="${name}${err ? ': ' + t(err) : ''} (${t('timeline.edit')})">${ICON[f.type]}<span>${name}</span></button>`;
+  }).join('') || `<span class="empty">${t('timeline.empty')}</span>`;
 }
 $('#chips').addEventListener('click', e => {
   const b = e.target.closest('.chip');
   if (!b) return;
-  if (sketch) return flash('Finish the sketch first.');
+  if (sketch) return flash(t('timeline.finishFirst'));
   editFeature(+b.dataset.i);
 });
 
 function hintText() {
-  if (pickingPlane) return 'Click a plane, or a flat face of your part, to sketch on it. Esc cancels.';
-  if (sketch) {
-    const n = sketch.pts.length;
-    return {
-      line: n ? 'Keep clicking to add corners. Click the first point again (it turns green) to close the shape. Esc stops.' : 'Line: click where the shape starts.',
-      rect: n ? 'Click the opposite corner.' : 'Rectangle: click the first corner.',
-      circle: n ? 'Click to set the size.' : 'Circle: click the center.',
-    }[sketch.tool] || 'Pick Line, Rectangle or Circle. Type exact sizes in the panel. Drag to pan, scroll to zoom.';
-  }
-  if (cmd) return {
-    extrude: 'Set the distance. A negative number goes the other way.',
-    fillet: 'Click edges to round them. Left-drag to orbit.',
-    chamfer: 'Click edges to bevel them. Left-drag to orbit.',
-    hole: 'Click a flat face where the hole goes.',
-  }[cmd.feature.type];
-  return 'Left-drag to orbit · Shift-drag or right-drag to pan · Scroll to zoom';
+  if (pickingPlane) return t('hint.plane');
+  if (sketch) return t(sketch.tool ? `hint.${sketch.tool}${sketch.pts.length ? 1 : 0}` : 'hint.sketch');
+  return t(cmd ? `hint.${cmd.feature.type}` : 'hint.model');
 }
 let flashTimer = 0;
 const renderHint = () => { if (!flashTimer) $('#hint').textContent = hintText(); };
@@ -721,7 +706,7 @@ function openLesson(def, challenge) {
   clear(goalGroup);
   goalGroup.add(fat(cad.meshOf(goalBody).edges.lines, M.goal));
   goalGroup.visible = showGoal;
-  const steps = def.steps || [{ text: 'Build the part until it matches the goal.', done: s => s.match }];
+  const steps = def.steps || [s => s.match];
   lesson = { def, challenge, steps, step: 0, startCount: features.length, goal: cad.metrics(goalBody) };
   rebuildAll();
   renderLearn();
@@ -735,48 +720,50 @@ function checkLesson() {
     dialog: cmd?.feature.type, selected: cmd?.sel?.size || 0, holeFace: !!cmd?.feature.face, match: lesson.match, startCount: lesson.startCount,
   };
   const before = lesson.step;
-  while (lesson.step < lesson.steps.length && lesson.steps[lesson.step].done(s)) lesson.step++;
+  while (lesson.step < lesson.steps.length && lesson.steps[lesson.step](s)) lesson.step++;
   if (lesson.step === lesson.steps.length && before < lesson.step) markDone(lesson.def.id);
   if (lesson.step !== before || lesson.challenge) renderLearn();
 }
 
 const sizeOf = m => (m ? [0, 1, 2].map(i => fmt(m.max[i] - m.min[i])).join(' × ') : '-');
-const volOf = m => (m ? Math.round(m.volume).toLocaleString() + ' mm³' : '-');
+const volOf = m => (m ? Math.round(m.volume).toLocaleString(lang) + ' mm³' : '-');
+// Text of a lesson or challenge ({ def, challenge }) from the locale files.
+const lt = (x, k) => t(`${x.challenge ? 'challenge' : 'lesson'}.${x.def.id}.${k}`);
 
 function renderLearn() {
   const el = $('#learn');
   if (!lesson) {
     const done = doneIds();
-    const item = ({ def, challenge }, i) => `<li><button data-open="${def.id}">${done.includes(def.id) ? '✅' : `<b>${i + 1}</b>`} ${def.title}</button></li>`;
-    el.innerHTML = `<h2>Lessons</h2><ol class="menu">${ALL.filter(x => !x.challenge).map(item).join('')}</ol>
-      <h2>Challenges</h2><ol class="menu">${ALL.filter(x => x.challenge).map(item).join('')}</ol>
-      <p class="tip">Free building is what Fusion 360 is for. Here you learn the moves you will use there: sketch, extrude, then add features on top.</p>`;
+    const item = (x, i) => `<li><button data-open="${x.def.id}">${done.includes(x.def.id) ? '✅' : `<b>${i + 1}</b>`} ${lt(x, 'title')}</button></li>`;
+    el.innerHTML = `<h2>${t('learn.lessons')}</h2><ol class="menu">${ALL.filter(x => !x.challenge).map(item).join('')}</ol>
+      <h2>${t('learn.challenges')}</h2><ol class="menu">${ALL.filter(x => x.challenge).map(item).join('')}</ol>
+      <p class="tip">${t('learn.tip')}</p>`;
     return;
   }
   const { def, challenge, steps, step } = lesson;
   const won = step >= steps.length;
   const next = ALL[ALL.findIndex(x => x.def === def) + 1];
-  el.innerHTML = `<button class="back" data-act="back">← All lessons</button>
-    <h2>${challenge ? 'Challenge: ' : ''}${def.title}</h2>
-    ${def.intro ? `<p>${def.intro}</p>` : ''}
+  el.innerHTML = `<button class="back" data-act="back">${t('learn.back')}</button>
     ${challenge
-      ? `<p>Build this part. Use any features you like.</p><ul class="brief">${def.brief.map(b => `<li>${b}</li>`).join('')}</ul>
-        <table class="cmp"><tr><th></th><th>Yours</th><th>Goal</th></tr>
-        <tr><td>Size</td><td>${sizeOf(lesson.mine)}</td><td>${sizeOf(lesson.goal)}</td></tr>
-        <tr><td>Volume</td><td>${volOf(lesson.mine)}</td><td>${volOf(lesson.goal)}</td></tr></table>`
-      : `<ol class="steps">${steps.map((s, i) => `<li class="${i < step ? 'done' : i === step ? 'now' : ''}">${s.text}</li>`).join('')}</ol>`}
-    ${won ? `<div class="win"><b>🎉 Nice work! Your part matches.</b>${def.outro ? `<p>${def.outro}</p>` : ''}${next ? `<button class="btn" data-act="next">Next: ${next.def.title} →</button>` : ''}</div>` : ''}
-    <label class="check"><input type="checkbox" data-act="goal"${showGoal ? ' checked' : ''}> Show the goal shape (orange lines)</label>
-    <button class="btn" data-act="restart">Start over</button>`;
+      ? `<h2>${t('learn.challenge', { title: lt(lesson, 'title') })}</h2>
+        <p>${t('learn.build')}</p><ul class="brief">${lt(lesson, 'brief').map(b => `<li>${b}</li>`).join('')}</ul>
+        <table class="cmp"><tr><th></th><th>${t('learn.yours')}</th><th>${t('learn.goal')}</th></tr>
+        <tr><td>${t('learn.size')}</td><td>${sizeOf(lesson.mine)}</td><td>${sizeOf(lesson.goal)}</td></tr>
+        <tr><td>${t('learn.volume')}</td><td>${volOf(lesson.mine)}</td><td>${volOf(lesson.goal)}</td></tr></table>`
+      : `<h2>${lt(lesson, 'title')}</h2><p>${lt(lesson, 'intro')}</p>
+        <ol class="steps">${lt(lesson, 'steps').map((text, i) => `<li class="${i < step ? 'done' : i === step ? 'now' : ''}">${text}</li>`).join('')}</ol>`}
+    ${won ? `<div class="win"><b>${t('learn.win')}</b>${challenge ? '' : `<p>${lt(lesson, 'outro')}</p>`}${next ? `<button class="btn" data-act="next">${t('learn.next', { title: lt(next, 'title') })}</button>` : ''}</div>` : ''}
+    <label class="check"><input type="checkbox" data-act="goal"${showGoal ? ' checked' : ''}> ${t('learn.showGoal')}</label>
+    <button class="btn" data-act="restart">${t('learn.restart')}</button>`;
 }
 $('#learn').addEventListener('click', e => {
-  const t = e.target.closest('[data-open], [data-act]');
-  if (!t) return;
-  if (t.dataset.open) {
-    const x = ALL.find(x => x.def.id === t.dataset.open);
+  const el = e.target.closest('[data-open], [data-act]');
+  if (!el) return;
+  if (el.dataset.open) {
+    const x = ALL.find(x => x.def.id === el.dataset.open);
     return openLesson(x.def, x.challenge);
   }
-  const a = t.dataset.act;
+  const a = el.dataset.act;
   if (a === 'back') { lesson = null; clear(goalGroup); renderLearn(); draw(); }
   else if (a === 'next') { const x = ALL[ALL.findIndex(x => x.def === lesson.def) + 1]; openLesson(x.def, x.challenge); }
   else if (a === 'restart') openLesson(lesson.def, lesson.challenge);
@@ -806,6 +793,23 @@ function refresh(full = true) {
   draw();
 }
 
+// ---------- language ----------
+function applyLang() {
+  document.documentElement.lang = lang;
+  $('#lang').title = t('app.language');
+  $('#home').title = t('app.home');
+  $('#timeline-label').textContent = t('app.timeline');
+  $('#loading')?.replaceChildren(t('app.loading'));
+}
+$('#lang').innerHTML = Object.entries(LANGS).map(([k, d]) => `<option value="${k}"${k === lang ? ' selected' : ''}>${d['lang.name']}</option>`).join('');
+$('#lang').addEventListener('change', e => {
+  setLang(e.target.value);
+  applyLang();
+  renderLearn();
+  refresh();
+});
+
+applyLang();
 renderLearn();
 refresh();
 home();
@@ -813,5 +817,5 @@ try {
   await cad.init();
   $('#loading').remove();
 } catch (e) {
-  $('#loading').textContent = 'Could not load the CAD engine: ' + (e?.message || e);
+  $('#loading').textContent = t('app.loadFailed', { msg: e?.message || e });
 }

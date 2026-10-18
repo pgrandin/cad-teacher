@@ -27,6 +27,7 @@
   .tool.on { background: #d3e8f7; border-color: var(--blue); }
   .tool:disabled { opacity: .35; cursor: default; }
   .tool[data-tool=finish] svg { color: var(--ok); }
+  #lang { margin: auto 12px auto auto; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: #fff; font: inherit; }
 
   main { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
   #learn { background: #fff; border-right: 1px solid var(--line); overflow: auto; padding: 14px 16px; }
@@ -53,12 +54,13 @@
   #view { position: relative; min-height: 0; overflow: hidden; background: linear-gradient(#fbfcfd, #d6dee4); }
   canvas { display: block; }
   #home { position: absolute; top: 12px; left: 12px; width: 34px; height: 34px; padding: 5px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: #2f6f9c; cursor: pointer; }
-  #dialog { position: absolute; top: 12px; right: 12px; width: 280px; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
+  #dialog { position: absolute; top: 12px; right: 12px; width: 300px; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
   .dh { background: var(--dark); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 7px 10px; border-radius: 4px 4px 0 0; }
   .dh small { font-weight: 400; letter-spacing: 0; opacity: .7; margin-left: 6px; }
   .db { padding: 10px; max-height: 60vh; overflow: auto; }
   .db label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 0; }
-  .db input, .db select { width: 110px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 3px; font: inherit; }
+  .db input, .db select { width: 120px; flex: none; padding: 4px 6px; border: 1px solid var(--line); border-radius: 3px; font: inherit; }
+  .db select { width: auto; min-width: 120px; max-width: 180px; }
   .db input:focus, .db select:focus { outline: 2px solid var(--blue); }
   fieldset { border: 1px solid var(--line); border-radius: 4px; margin: 0 0 8px; padding: 2px 8px 4px; }
   fieldset.sel { border-color: #e65100; }
@@ -96,6 +98,7 @@
     <div id="tab">SOLID</div>
     <div id="tools"></div>
   </div>
+  <select id="lang"></select>
 </header>
 <main>
   <aside id="learn"></aside>
@@ -107,7 +110,7 @@
   </div>
 </main>
 <footer>
-  <span class="label">TIMELINE</span>
+  <span class="label" id="timeline-label">TIMELINE</span>
   <div id="chips"></div>
 </footer>
 <div id="loading">Loading the CAD engine…</div>

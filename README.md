@@ -11,9 +11,15 @@ Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
 
 - Run locally: `python3 -m http.server -d .`, then open http://localhost:8000
 - Test the engine and every lesson goal: `node test.mjs`
-- Deploy: every push to `main` publishes to GitHub Pages. Homelab copy: `lab deploy . --name cad-teacher`
+- Deploy: every push to `main` publishes to GitHub Pages.
 
-To add a lesson or challenge, append it to `lessons.js` (its goal is a feature list) and add its
-expected volume to `test.mjs`.
+Languages: English, Français, Español, Deutsch (picker in the header, or `?lang=fr` in the URL).
+Tool names match Fusion 360's own UI in each language, so kids find the same words there.
+
+To add a lesson or challenge, append it to `lessons.js` (its goal is a feature list), add its words
+to every file in `locales/`, and add its expected volume to `test.mjs`.
+
+To add a language, copy `locales/en.js`, translate it, and list it in `i18n.js`. `node test.mjs`
+fails if any key is missing.
 
 License: MIT for this code. The vendored libraries keep their own licenses (see `LICENSE`).

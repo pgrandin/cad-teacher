@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import * as cad from './cad.js';
+import { readFileSync } from 'node:fs';
 import { LESSONS, CHALLENGES } from './lessons.js';
+import { LANGS } from './i18n.js';
 
 await cad.init(fileURLToPath(new URL('./vendor/replicad_single.wasm', import.meta.url)));
 const PI = Math.PI;
@@ -37,9 +39,9 @@ edited[1].distance = 15;
 const goal = cad.metrics(cad.rebuild(LESSONS.find(l => l.id === 'change').goal).body);
 assert.ok(cad.sameShape(cad.metrics(cad.rebuild(edited).body), goal), 'edited timeline should match goal');
 
-// A fillet that is too big fails cleanly instead of crashing.
+// A fillet that is too big fails cleanly instead of crashing, with a translatable error.
 const bad = [...LESSONS[0].goal, { type: 'fillet', id: 'x', edges: LESSONS[1].goal[2].edges, r: 50 }];
-assert.ok(cad.rebuild(bad).errors.x);
+assert.equal(cad.rebuild(bad).errors.x, 'err.filletFailed');
 near(cad.metrics(cad.rebuild(bad).body).volume, 8000);
 
 // Sketch on a side face (normal -Y) and a closed polyline.
@@ -51,4 +53,18 @@ const m = cad.metrics(cad.rebuild(side).body);
 assert.ok(Math.abs(m.min[1] + 14) < 0.1, 'side extrude should grow toward -Y');
 
 assert.ok((await cad.stlOf(cad.rebuild(LESSONS[0].goal).body).arrayBuffer()).byteLength > 84);
+// i18n: every language has every English key, with the same shape and placeholders.
+const { en } = LANGS;
+const holes = v => JSON.stringify([...String(v).matchAll(/\{\w+\}/g)].map(m => m[0]).sort());
+for (const [code, d] of Object.entries(LANGS)) {
+  assert.deepEqual(Object.keys(d).sort(), Object.keys(en).sort(), `${code}: keys differ from en`);
+  for (const [k, v] of Object.entries(en)) {
+    assert.equal(Array.isArray(d[k]), Array.isArray(v), `${code}: ${k} shape`);
+    if (Array.isArray(v)) assert.equal(d[k].length, v.length, `${code}: ${k} length`);
+    else assert.equal(holes(d[k]), holes(v), `${code}: ${k} placeholders`);
+  }
+}
+for (const l of LESSONS) assert.equal(en[`lesson.${l.id}.steps`].length, l.steps.length, `${l.id}: one text per step`);
+for (const c of CHALLENGES) assert.ok(en[`challenge.${c.id}.brief`], `${c.id}: brief`);
+for (const [k] of readFileSync(new URL('./cad.js', import.meta.url), 'utf8').matchAll(/err\.\w+/g)) assert.ok(k in en, `missing ${k}`);
 console.log('ok');

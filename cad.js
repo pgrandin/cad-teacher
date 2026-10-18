@@ -31,13 +31,13 @@ function findFace(body, ref) {
     const d = dist(f.center.toTuple(), ref.c);
     if (d < bestD) { best = f; bestD = d; }
   }
-  if (!best) throw new Error("Can't find the face this was attached to");
+  if (!best) throw new Error('err.noFace');
   return best;
 }
 
 export function resolvePlane(spec, body) {
   if (spec.base) return planeFrom(BASE_PLANES[spec.base]);
-  if (!body) throw new Error('There is no body to sketch on');
+  if (!body) throw new Error('err.noBodyToSketch');
   return planeFrom(spec.face.n, dot(spec.face.n, findFace(body, spec.face).center.toTuple()));
 }
 
@@ -53,12 +53,12 @@ export function edgeRef(body, edgeId) {
 }
 
 function findEdges(body, refs) {
-  if (!refs.length) throw new Error('Pick at least one edge');
+  if (!refs.length) throw new Error('err.pickEdge');
   const edges = body.edges.map(e => [e, e.pointAt(0.5).toTuple(), e.geomType]);
   return refs.map(r => {
     let best = null, bestD = Infinity;
     for (const [e, m, g] of edges) if (g === r.g && dist(m, r.m) < bestD) { best = e; bestD = dist(m, r.m); }
-    if (!best) throw new Error("Can't find the edges for this feature");
+    if (!best) throw new Error('err.noEdges');
     return best;
   });
 }
@@ -76,19 +76,15 @@ function drawingOf(s) {
 
 // ponytail: every closed shape in a sketch becomes solid (union); no Fusion-style profile picking.
 function extrudeSketch(sk, pl, distance) {
-  if (!sk.shapes.length) throw new Error('This sketch is empty');
-  if (!distance) throw new Error("Distance can't be 0");
+  if (!sk.shapes.length) throw new Error('err.emptySketch');
+  if (!distance) throw new Error('err.zeroDistance');
   return sk.shapes
     .map(s => drawingOf(s).sketchOnPlane(new R.Plane(pl.o, pl.u, pl.n)).extrude(distance))
     .reduce((a, b) => a.fuse(b));
 }
 
-const FAIL = {
-  extrude: 'Extrude failed',
-  fillet: 'Fillet failed. Is the radius too big?',
-  chamfer: 'Chamfer failed. Is the distance too big?',
-  hole: 'Hole failed',
-};
+// Errors are i18n keys (see locales/). OpenCascade's own failures map to one per feature type.
+const FAIL = { extrude: 'err.extrudeFailed', fillet: 'err.filletFailed', chamfer: 'err.chamferFailed', hole: 'err.holeFailed' };
 
 // Replays the timeline. A failing feature is skipped and reported, like a red item in Fusion.
 export function rebuild(features) {
@@ -100,28 +96,28 @@ export function rebuild(features) {
         planes[f.id] = resolvePlane(f.plane, body);
       } else if (f.type === 'extrude') {
         const sk = features.find(s => s.id === f.sketch);
-        if (!sk || !planes[sk.id]) throw new Error('Pick a sketch to extrude');
+        if (!sk || !planes[sk.id]) throw new Error('err.pickSketch');
         const solid = extrudeSketch(sk, planes[sk.id], f.distance);
         if (f.op === 'cut') {
-          if (!body) throw new Error('Nothing to cut yet');
+          if (!body) throw new Error('err.nothingToCut');
           body = body.cut(solid);
         } else body = body ? body.fuse(solid) : solid;
       } else if (f.type === 'fillet' || f.type === 'chamfer') {
-        if (!body) throw new Error('Nothing to round yet');
-        if (!(f.r > 0)) throw new Error('Size must be more than 0');
+        if (!body) throw new Error('err.nothingToRound');
+        if (!(f.r > 0)) throw new Error('err.sizePositive');
         const chosen = findEdges(body, f.edges);
         body = body[f.type](e => (chosen.some(c => c.isSame(e)) ? f.r : null));
       } else if (f.type === 'hole') {
-        if (!body) throw new Error('Nothing to drill yet');
-        if (!f.face) throw new Error('Click a flat face to drill into');
-        if (!(f.d > 0)) throw new Error('Diameter must be more than 0');
+        if (!body) throw new Error('err.nothingToDrill');
+        if (!f.face) throw new Error('err.pickFace');
+        if (!(f.d > 0)) throw new Error('err.diameterPositive');
         const pl = resolvePlane({ face: f.face }, body);
         const p = add(add(pl.o, pl.u, f.x), pl.v, f.y);
         const depth = f.depth > 0 ? f.depth : 1000; // 0 = through all
         body = body.cut(R.makeCylinder(f.d / 2, depth + 1, add(p, pl.n, 1), pl.n.map(x => -x)));
       }
     } catch (e) {
-      errors[f.id] = e instanceof Error && e.message ? e.message : FAIL[f.type] || 'Failed';
+      errors[f.id] = e instanceof Error && e.message.startsWith('err.') ? e.message : FAIL[f.type] || 'err.failed';
     }
   }
   return { body, errors, planes };
