@@ -4,6 +4,8 @@ export default {
   'app.loading': 'CAD-Engine wird geladen…',
   'app.loadFailed': 'Die CAD-Engine konnte nicht geladen werden: {msg}',
   'app.home': 'Startansicht',
+  'view.persp': 'Perspektivische Ansicht: Weit Entferntes wirkt kleiner, wie auf einem Foto. Klicke für Orthogonal.',
+  'view.ortho': 'Orthogonale Ansicht: ohne Perspektive, Größen und Winkel bleiben echt, wie auf einer Zeichnung. Klicke für Perspektive.',
   'app.timeline': 'ZEITACHSE',
   'app.version': 'Version dieser Seite',
   'app.language': 'Sprache',

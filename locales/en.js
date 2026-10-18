@@ -5,6 +5,8 @@ export default {
   'app.loading': 'Loading the CAD engine…',
   'app.loadFailed': 'Could not load the CAD engine: {msg}',
   'app.home': 'Home view',
+  'view.persp': 'Perspective view: far things look smaller, like in a photo. Click for Orthographic.',
+  'view.ortho': 'Orthographic view: no perspective, so sizes and angles look true, like a drawing. Click for Perspective.',
   'app.timeline': 'TIMELINE',
   'app.version': 'Version running in this page',
   'app.language': 'Language',

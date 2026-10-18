@@ -4,6 +4,8 @@ export default {
   'app.loading': 'Chargement du moteur de CAO…',
   'app.loadFailed': 'Impossible de charger le moteur de CAO : {msg}',
   'app.home': 'Vue d’accueil',
+  'view.persp': 'Vue en perspective : ce qui est loin paraît plus petit, comme sur une photo. Clique pour Orthographique.',
+  'view.ortho': 'Vue orthographique : sans perspective, les tailles et les angles restent vrais, comme sur un plan. Clique pour Perspective.',
   'app.timeline': 'CHRONOLOGIE',
   'app.version': 'Version de cette page',
   'app.language': 'Langue',

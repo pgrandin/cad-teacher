@@ -4,6 +4,8 @@ export default {
   'app.loading': 'Cargando el motor CAD…',
   'app.loadFailed': 'No se pudo cargar el motor CAD: {msg}',
   'app.home': 'Vista inicial',
+  'view.persp': 'Vista en perspectiva: lo lejano se ve más pequeño, como en una foto. Haz clic para Ortogonal.',
+  'view.ortho': 'Vista ortogonal: sin perspectiva, los tamaños y ángulos se ven reales, como en un plano. Haz clic para Perspectiva.',
   'app.timeline': 'LÍNEA DE TIEMPO',
   'app.version': 'Versión de esta página',
   'app.language': 'Idioma',

@@ -41,14 +41,18 @@ renderer.setPixelRatio(devicePixelRatio);
 view.prepend(renderer.domElement);
 const canvas = renderer.domElement;
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(35, 1, 0.5, 5000);
+const persp = new THREE.PerspectiveCamera(35, 1, 0.5, 5000);
+// Sketches use an orthographic view like Fusion's: no perspective, so a square looks square.
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -5000, 5000);
+const TAN = Math.tan(THREE.MathUtils.degToRad(persp.fov / 2));
+let camera = persp, aspect = 1, modelOrtho = false;
 camera.up.set(0, 0, 1);
 const controls = new OrbitControls(camera, canvas);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x8090a0, 1.8));
 const sun = new THREE.DirectionalLight(0xffffff, 1.4);
 sun.position.set(1, 0.5, 2);
 camera.add(sun);
-scene.add(camera);
+scene.add(persp, ortho);
 
 const grid = new THREE.GridHelper(200, 20, 0x8f9ba5, 0xc5ccd2);
 grid.rotation.x = Math.PI / 2;
@@ -119,8 +123,11 @@ new ResizeObserver(() => {
   const w = view.clientWidth, h = view.clientHeight;
   renderer.setSize(w, h);
   fatMats.forEach(m => m.resolution.set(w, h));
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
+  persp.aspect = aspect = w / h;
+  persp.updateProjectionMatrix();
+  ortho.left = ortho.bottom * aspect;
+  ortho.right = ortho.top * aspect;
+  ortho.updateProjectionMatrix();
   draw();
 }).observe(view);
 
@@ -255,31 +262,57 @@ function fitView(body) {
   const r = Math.max(Math.hypot(...max.map((v, i) => v - min[i])) / 2, 25);
   return { c, r };
 }
+// Height of the view at the target: both cameras show the same, so switching keeps the framing.
+const viewHeight = () => (camera === ortho ? (ortho.top - ortho.bottom) / ortho.zoom : 2 * TAN * camera.position.distanceTo(controls.target));
+function aim(target, dir, dist) {
+  controls.target.copy(target);
+  camera.position.copy(target).addScaledVector(dir.normalize(), dist);
+  if (camera === ortho) {
+    Object.assign(ortho, { top: TAN * dist, bottom: -TAN * dist, left: -TAN * dist * aspect, right: TAN * dist * aspect, zoom: 1 });
+    ortho.updateProjectionMatrix();
+  }
+  controls.update();
+  draw();
+}
+function useOrtho(on) {
+  if (on !== (camera === ortho)) {
+    const dir = camera.position.clone().sub(controls.target), h = viewHeight();
+    (on ? ortho : persp).up.copy(camera.up);
+    camera = controls.object = on ? ortho : persp;
+    camera.add(sun);
+    aim(controls.target.clone(), dir, h / 2 / TAN);
+  }
+  $('#proj').innerHTML = PROJ_ICON[+on];
+  $('#proj').title = t(on ? 'view.ortho' : 'view.persp');
+}
+const PROJ_ICON = ['M3 9h12v12H3zM10 4h10v10H10M3 9l7-5M15 9l5-5M15 21l5-7', 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9']
+  .map(d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="${d}"/></svg>`);
 function home() {
   const { c, r } = asm ? fitBox(new THREE.Box3().setFromObject(asmGroup))
     : printMode && shown ? fitBox(new THREE.Box3().setFromObject(shownGroup)) : fitView(built.body);
   camera.up.set(0, 0, 1);
-  controls.target.set(...c);
   // The print view looks from low down, to see the undersides that need support.
-  camera.position.copy(V(c)).addScaledVector(new THREE.Vector3(1, -1.3, printMode ? 0.3 : 1).normalize(), r * 3.6);
-  controls.update();
-  draw();
+  aim(V(c), new THREE.Vector3(1, -1.3, printMode ? 0.3 : 1), r * 3.6);
 }
 function lookAtPlane(pl) {
   const { c, r } = fitView(sketch.before.body);
   const k = dot(c.map((v, i) => v - pl.o[i]), pl.n);
   const target = c.map((v, i) => v - k * pl.n[i]); // body center, dropped onto the sketch plane
   camera.up.copy(V(pl.v));
-  controls.target.set(...target);
-  camera.position.copy(V(target)).addScaledVector(V(pl.n), Math.max(r, 40) * 3.6);
-  controls.update();
-  draw();
+  aim(V(target), V(pl.n), Math.max(r, 40) * 3.6);
 }
+// Leaving a sketch goes back to the view the kid had picked for the model.
 function sketchControls(on) {
   controls.enableRotate = !on;
   controls.mouseButtons.LEFT = !on ? THREE.MOUSE.ROTATE : sketch?.tool ? null : THREE.MOUSE.PAN;
+  if (!on) useOrtho(modelOrtho);
 }
 $('#home').onclick = () => (sketch ? lookAtPlane(sketch.plane) : home());
+$('#proj').onclick = () => {
+  useOrtho(camera !== ortho);
+  if (!sketch) modelOrtho = camera === ortho;
+};
+useOrtho(false);
 
 // ---------- timeline actions ----------
 // Timeline names like Fusion: Sketch1, Extrude2... in the current language.
@@ -376,6 +409,7 @@ function enterSketch(index, feature) {
   cmd = null;
   sketch = { index, feature: structuredClone(feature), plane, before, tool: null, pts: [], cursor: null, sel: -1 };
   sketchControls(true);
+  useOrtho(true);
   lookAtPlane(plane);
   refresh();
 }
@@ -461,7 +495,7 @@ function pick(e) {
   const meshHit = picker && ray.intersectObject(picker.mesh)[0];
   if (wantEdge) {
     if (!picker) return null;
-    const tol = (ray.params.Line.threshold = camera.position.distanceTo(controls.target) * 0.01);
+    const tol = (ray.params.Line.threshold = viewHeight() * 0.016);
     // Of the visible edges near the cursor, take the one closest to it (short edges meet long ones at corners).
     const h = ray.intersectObject(picker.lines)
       .filter(h => !meshHit || h.distance <= meshHit.distance + tol)
@@ -1016,7 +1050,7 @@ function drawAssembly() {
 function pickRim(e) {
   setRay(e);
   scene.updateMatrixWorld();
-  const tol = (ray.params.Line.threshold = camera.position.distanceTo(controls.target) * 0.01);
+  const tol = (ray.params.Line.threshold = viewHeight() * 0.016);
   const meshHit = ray.intersectObjects(asm.objs.map(g => g.children[0]), false)[0];
   const hits = ray.intersectObjects(asm.objs.map(g => g.children[1]), false)
     .filter(h => !meshHit || h.distance <= meshHit.distance + tol)
@@ -1175,6 +1209,7 @@ function applyLang() {
   document.documentElement.lang = lang;
   $('#lang').title = t('app.language');
   $('#home').title = t('app.home');
+  $('#proj').title = t(camera === ortho ? 'view.ortho' : 'view.persp');
   $('#timeline-label').textContent = t('app.timeline');
   $('#version').title = t('app.version');
   $('#loading')?.replaceChildren(t('app.loading'));

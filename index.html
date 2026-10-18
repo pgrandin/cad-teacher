@@ -78,7 +78,8 @@
 
   #view { position: relative; min-height: 0; overflow: hidden; background: linear-gradient(#fbfcfd, #d6dee4); }
   canvas { display: block; }
-  #home { position: absolute; top: 12px; left: 12px; width: 34px; height: 34px; padding: 5px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: #2f6f9c; cursor: pointer; }
+  #home, #proj { position: absolute; top: 12px; left: 12px; width: 34px; height: 34px; padding: 5px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: #2f6f9c; cursor: pointer; }
+  #proj { top: 52px; }
   #dialog { position: absolute; top: 12px; right: 12px; width: 300px; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
   .dh { background: var(--dark); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 7px 10px; border-radius: 4px 4px 0 0; }
   .dh small { font-weight: 400; letter-spacing: 0; opacity: .7; margin-left: 6px; }
@@ -135,6 +136,7 @@
   <aside id="learn"></aside>
   <div id="view">
     <button id="home" title="Home view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 11l9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5"/></svg></button>
+    <button id="proj"></button>
     <div id="parts" hidden></div>
     <div id="dialog" hidden></div>
     <div id="hint"></div>
