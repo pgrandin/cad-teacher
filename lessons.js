@@ -2,7 +2,7 @@
 // Challenges only have a goal. Goals are feature lists, built by the same engine as the kid's part.
 // The words live in locales/*.js under lesson.<id>.* and challenge.<id>.* (one step text per check).
 // Every lesson and challenge belongs to a course; the menu shows courses in this order.
-export const COURSES = ['basics', 'robot', 'elf'];
+export const COURSES = ['basics', 'robot', 'elf', 'spin'];
 
 const rect = (x, y, w, h) => ({ kind: 'rect', x, y, w, h });
 const circle = (x, y, d) => ({ kind: 'circle', x, y, d });
@@ -28,6 +28,7 @@ const block = (w = 40, h = 20, t = 10) => [
 // Step checks
 const sketching = s => s.mode === 'sketch';
 const onFace = s => s.mode === 'sketch' && s.sketchOnFace;
+const onPlane = base => s => s.mode === 'sketch' && s.sketchBase === base;
 const opened = type => s => s.dialog === type;
 const added = type => s => s.mode === 'model' && s.features.slice(s.startCount).some(f => f.type === type);
 const drew = (kind, p = {}) => s => (s.draft || []).some(x => x.kind === kind && Object.entries(p).every(([k, v]) => x[k] === v));
@@ -192,6 +193,45 @@ export const LESSONS = [
     ],
     steps: [made('extrude', 1), made('sketch', 2), matches],
   },
+  {
+    // Revolve: half a pawn drawn on the back wall (XZ), spun around the vertical axis.
+    id: 'spin-pawn',
+    course: 'spin',
+    start: [],
+    goal: [
+      { type: 'sketch', id: 's1', plane: { base: 'XZ' }, shapes: [rect(6, 2, 12, 4), rect(2.5, 12, 5, 16), circle(0, 25, 12)] },
+      { type: 'revolve', id: 'r1', sketch: 's1', axis: 'v', angle: 360, op: 'join' },
+    ],
+    steps: [onPlane('XZ'), made('sketch', 1), matches],
+  },
+  {
+    // Revolve a hub and a rim, add one spoke, pattern it around, drill the axle hole.
+    id: 'spin-wheel',
+    course: 'spin',
+    start: [],
+    goal: [
+      { type: 'sketch', id: 's1', plane: { base: 'XZ' }, shapes: [rect(3, 3, 6, 6), rect(15, 3, 6, 6)] },
+      { type: 'revolve', id: 'r1', sketch: 's1', axis: 'v', angle: 360, op: 'join' },
+      { type: 'sketch', id: 's2', plane: { base: 'XY' }, shapes: [rect(9, 0, 8, 3)] },
+      { type: 'extrude', id: 'e1', sketch: 's2', distance: 4, op: 'join' },
+      { type: 'pattern', id: 'p1', of: 'e1', kind: 'circle', n: 6 },
+      { type: 'hole', id: 'h1', face: top(6), x: 0, y: 0, d: 3.5, depth: 0 },
+    ],
+    steps: [made('revolve', 1), made('extrude', 1), made('pattern', 1), matches],
+  },
+  {
+    // One stud, then a rectangular pattern: 4 × 2 studs, 8 mm apart like the real thing.
+    id: 'spin-brick',
+    course: 'spin',
+    start: [],
+    goal: [
+      ...block(32, 16, 10),
+      { type: 'sketch', id: 's2', plane: { face: top(10) }, shapes: [circle(-12, -4, 5)] },
+      { type: 'extrude', id: 'e2', sketch: 's2', distance: 2, op: 'join' },
+      { type: 'pattern', id: 'p1', of: 'e2', kind: 'rect', nx: 4, dx: 8, ny: 2, dy: 8 },
+    ],
+    steps: [made('extrude', 1), made('extrude', 2), matches],
+  },
 ];
 
 export const CHALLENGES = [
@@ -254,6 +294,16 @@ export const CHALLENGES = [
       { type: 'sketch', id: 's3', plane: { face: top(8) }, shapes: [rect(0, 22, 24, 10)] },
       { type: 'extrude', id: 'e3', sketch: 's3', distance: 4, op: 'join' },
       { type: 'fillet', id: 'f1', edges: cornerEdges(24, 10, 4, 0, 22, 8), r: 3 },
+    ],
+  },
+  {
+    id: 'spin-button',
+    course: 'spin',
+    goal: [
+      { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [circle(0, 0, 20)] },
+      { type: 'extrude', id: 'e1', sketch: 's1', distance: 3, op: 'join' },
+      { type: 'hole', id: 'h1', face: top(3), x: 4, y: 0, d: 2, depth: 0 },
+      { type: 'pattern', id: 'p1', of: 'h1', kind: 'circle', n: 4 },
     ],
   },
 ];

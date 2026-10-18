@@ -211,7 +211,7 @@ function drawSketches() {
     return;
   }
   // Like Fusion, a sketch hides once an extrude uses it.
-  const used = new Set(features.filter(f => f.type === 'extrude').map(f => f.sketch));
+  const used = new Set(features.filter(f => (f.type === 'extrude' || f.type === 'revolve')).map(f => f.sketch));
   for (const f of features) {
     if (f.type !== 'sketch' || used.has(f.id) || !built.planes[f.id]) continue;
     const g = planeGroup(built.planes[f.id]);
@@ -288,9 +288,12 @@ function undoLast() {
   rebuildAll();
 }
 
+// Features whose material a pattern can copy, with their timeline index.
+const patternable = index => features.slice(0, index).map((f, i) => [f, i]).filter(([f]) => ['extrude', 'revolve', 'hole'].includes(f.type));
+
 function defaultSketch(index) {
   const prior = features.slice(0, index);
-  const used = new Set(prior.filter(f => f.type === 'extrude').map(f => f.sketch));
+  const used = new Set(prior.filter(f => (f.type === 'extrude' || f.type === 'revolve')).map(f => f.sketch));
   const sketches = prior.filter(f => f.type === 'sketch');
   return (sketches.findLast(f => !used.has(f.id)) || sketches.at(-1))?.id || '';
 }
@@ -300,6 +303,8 @@ const DEFAULTS = {
   fillet: () => ({ edges: [], r: 2 }),
   chamfer: () => ({ edges: [], r: 1 }),
   hole: () => ({ face: null, x: 0, y: 0, d: 6, depth: 0 }),
+  revolve: i => ({ sketch: defaultSketch(i), axis: 'v', angle: 360, op: 'join' }),
+  pattern: i => ({ of: patternable(i).at(-1)?.[0].id || '', kind: 'rect', nx: 2, dx: 10, ny: 1, dy: 10, n: 6 }),
 };
 
 function startCommand(type, index = features.length, feature = null) {
@@ -560,6 +565,8 @@ const ICON = {
   undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'),
   stl: svg('<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>'),
   step: svg('<path d="M12 3v9M8 8l4 4 4-4"/><path d="M4 14l8 4 8-4M4 14v4l8 4 8-4v-4"/>'),
+  revolve: svg('<path d="M12 3v18" stroke-dasharray="2 2"/><path d="M12 6c5 0 7 2 7 6s-2 6-7 6"/><path d="M8 16l-2 2 2 2"/><path d="M6 18h6"/>'),
+  pattern: svg('<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1" opacity=".55"/><rect x="3" y="15" width="6" height="6" rx="1" opacity=".55"/><rect x="15" y="15" width="6" height="6" rx="1" opacity=".55"/>'),
   joint: svg('<circle cx="7" cy="12" r="4"/><circle cx="17" cy="12" r="4"/><circle cx="7" cy="12" r="1" fill="currentColor"/><path d="M11 12h2"/>'),
   drive: svg('<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M17 2v4h-4"/><circle cx="12" cy="12" r="2"/>'),
 };
@@ -587,7 +594,9 @@ function renderToolbar() {
     : group('create', [
       toolBtn('sketch', { on: pickingPlane }),
       toolBtn('extrude', { on: type === 'extrude', disabled: !features.some(f => f.type === 'sketch'), key: 'E' }),
+      toolBtn('revolve', { on: type === 'revolve', disabled: !features.some(f => f.type === 'sketch') }),
       toolBtn('hole', { on: type === 'hole', disabled: !body, key: 'H' }),
+      toolBtn('pattern', { on: type === 'pattern', disabled: !patternable(features.length).length }),
     ]) + group('modify', [
       toolBtn('fillet', { on: type === 'fillet', disabled: !body, key: 'F' }),
       toolBtn('chamfer', { on: type === 'chamfer', disabled: !body }),
@@ -630,11 +639,20 @@ function renderDialog() {
   if (!cmd) return;
   const f = cmd.feature;
   let body = '';
+  const sketches = features.slice(0, cmd.index).map((g, i) => [g, i]).filter(([g]) => g.type === 'sketch');
+  const profile = () => select('extrude.profile', 'sketch', f.sketch, sketches.map(([g, i]) => [g.id, nameAt(i, 'sketch')]));
+  const operation = () => select('extrude.operation', 'op', f.op, [['join', t('extrude.join')], ['cut', t('extrude.cut')]]);
   if (f.type === 'extrude') {
-    const sketches = features.slice(0, cmd.index).map((g, i) => [g, i]).filter(([g]) => g.type === 'sketch');
-    body = select('extrude.profile', 'sketch', f.sketch, sketches.map(([g, i]) => [g.id, nameAt(i, 'sketch')])) +
-      num('extrude.distance', f.distance, 'data-k="distance"') +
-      select('extrude.operation', 'op', f.op, [['join', t('extrude.join')], ['cut', t('extrude.cut')]]);
+    body = profile() + num('extrude.distance', f.distance, 'data-k="distance"') + operation();
+  } else if (f.type === 'revolve') {
+    body = profile() + select('revolve.axis', 'axis', f.axis, [['v', t('revolve.axisV')], ['h', t('revolve.axisH')]]) +
+      num('revolve.angle', f.angle, 'data-k="angle"') + operation();
+  } else if (f.type === 'pattern') {
+    body = select('pattern.of', 'of', f.of, patternable(cmd.index).map(([g, i]) => [g.id, nameAt(i, g.type)])) +
+      select('pattern.kind', 'kind', f.kind, [['rect', t('pattern.rect')], ['circle', t('pattern.circle')]]) +
+      (f.kind === 'circle'
+        ? `<p class="note">${t('pattern.circleNote')}</p>` + num('pattern.n', f.n, 'data-k="n"')
+        : num('pattern.nx', f.nx, 'data-k="nx"') + num('pattern.dx', f.dx, 'data-k="dx"') + num('pattern.ny', f.ny, 'data-k="ny"') + num('pattern.dy', f.dy, 'data-k="dy"'));
   } else if (f.type === 'hole') {
     body = `<p class="note">${t(f.face ? 'hole.picked' : 'hole.pick')}</p>` +
       num('hole.x', f.x, 'data-k="x"') + num('hole.y', f.y, 'data-k="y"') +
@@ -671,7 +689,7 @@ $('#dialog').addEventListener('input', e => {
   }
   cmd.feature[k] = v;
   updatePreview();
-  refresh(false);
+  refresh(k === 'kind'); // switching pattern type shows other fields
 });
 $('#dialog').addEventListener('focusin', e => {
   e.target.select?.();
@@ -767,7 +785,7 @@ function openLesson(def, challenge, fresh = false) {
 function checkLesson() {
   if (!lesson) return;
   const s = {
-    features, mode: sketch ? 'sketch' : 'model', draft: sketch?.feature.shapes, sketchOnFace: !!sketch?.feature.plane.face,
+    features, mode: sketch ? 'sketch' : 'model', draft: sketch?.feature.shapes, sketchOnFace: !!sketch?.feature.plane.face, sketchBase: sketch?.feature.plane.base,
     dialog: acmd?.kind ?? cmd?.feature.type, selected: cmd?.sel?.size || 0, holeFace: !!cmd?.feature.face, match: lesson.match, startCount: lesson.startCount,
     asm, picked: acmd?.kind === 'joint' ? [acmd.joint.moving, acmd.joint.fixed].filter(Boolean).length : 0, driven: !!asm?.driven,
   };

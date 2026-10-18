@@ -3,10 +3,11 @@
 **Try it: https://pgrandin.github.io/cad-teacher/**
 
 Teaches kids the Fusion 360 / SolidWorks way to model: sketch, extrude, then build features on
-features (fillet, chamfer, hole), with a timeline you can go back and edit. Three courses, each with
+features (fillet, chamfer, hole, revolve, pattern), with a timeline you can go back and edit. Four courses, each with
 guided lessons and challenges checked against a goal shape: the basics, "Design your robot arm"
 (printable parts, then an assembly with joints you can drive, like Fusion's Joint and Drive Joints),
-and "Elf furniture" (dollhouse table, chair, bookshelf, bed).
+"Elf furniture" (dollhouse table, chair, bookshelf, bed), and "Spin & repeat" (revolve and
+pattern: chess pawn, robot wheel, toy brick).
 Work is saved in the browser per lesson. Parts export to STL (3D printing) and STEP (opens in Fusion).
 
 Static site, no build step. The geometry is real B-rep CAD (OpenCascade through

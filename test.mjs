@@ -11,6 +11,7 @@ import { Vector3 } from './vendor/three.module.js';
 await cad.init(fileURLToPath(new URL('./vendor/replicad_single.wasm', import.meta.url)));
 const PI = Math.PI;
 const vol = fs => cad.metrics(cad.rebuild(fs).body).volume;
+const integrate = (f, a, b, n = 1000) => { const h = (b - a) / n; let s = 0; for (let i = 0; i < n; i++) s += f(a + (i + 0.5) * h) * h; return s; };
 const near = (a, b) => assert.ok(Math.abs(a - b) < 0.01 * b, `${a} != ${b}`);
 
 const expected = {
@@ -33,6 +34,12 @@ const expected = {
   'elf-chair': 4 * 16 * 25 + 30 * 30 * 3 + 30 * 3 * 30 - 2 * (25 - 25 * PI / 4) * 3,
   'elf-shelf': 50 * 20 * 70 - 3 * 44 * 18 * 16,
   'elf-bed': 40 * 70 * 8 + 40 * 4 * 25 + 24 * 10 * 4 - 4 * (9 - 9 * PI / 4) * 4,
+  // base + body cylinders + ball head, minus the 1 mm cap of the ball that sits inside the body
+  'spin-pawn': PI * 144 * 4 + PI * 25 * 16 + 4 / 3 * PI * 216 - PI * 17 / 3,
+  // hub + rim + 6 spokes (the part between hub and rim) - axle hole
+  'spin-wheel': PI * 36 * 6 + PI * (324 - 144) * 6 + 6 * 4 * integrate(y => Math.sqrt(144 - y * y) - Math.sqrt(36 - y * y), -1.5, 1.5) - PI * 1.75 ** 2 * 6,
+  'spin-brick': 32 * 16 * 10 + 8 * PI * 2.5 ** 2 * 2,
+  'spin-button': PI * 100 * 3 - 4 * PI * 1 * 3,
 };
 
 for (const l of [...LESSONS, ...CHALLENGES]) {

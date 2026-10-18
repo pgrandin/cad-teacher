@@ -86,25 +86,66 @@ function extrudeSketch(sk, pl, distance) {
     .reduce((a, b) => clean(a.fuse(b)));
 }
 
+// Revolve spins each shape around the sketch's vertical ('v', sketch Y) or horizontal ('h', sketch X) axis.
+// A shape that crosses the axis keeps only the half on its center's side, so a circle centered on the
+// axis turns into a ball instead of a broken solid.
+function revolveSketch(sk, pl, axis, angle) {
+  if (!sk.shapes.length) throw new Error('err.emptySketch');
+  if (!angle) throw new Error('err.zeroAngle');
+  const v = axis === 'v';
+  return sk.shapes.map(s => {
+    const pts = s.kind === 'poly' ? s.pts : [[s.x, s.y]];
+    const side = Math.sign(pts.reduce((sum, p) => sum + p[v ? 0 : 1], 0)) || 1;
+    const half = v ? R.drawRectangle(2000, 4000).translate(1000 * side, 0) : R.drawRectangle(4000, 2000).translate(0, 1000 * side);
+    return drawingOf(s).intersect(half).sketchOnPlane(new R.Plane(pl.o, pl.u, pl.n)).revolve(v ? pl.v : pl.u, { origin: pl.o, angle });
+  }).reduce((a, b) => clean(a.fuse(b)));
+}
+
+// Pattern copies the material another feature added or removed: in a grid along world X/Y, or around
+// the vertical axis through the origin.
+// ponytail: fixed pattern directions (X/Y, Z axis); Fusion lets you pick any edge or axis.
+function patternCopies(tool, f) {
+  const copies = [];
+  if (f.kind === 'circle') {
+    const n = Math.round(f.n);
+    if (!(n >= 2)) throw new Error('err.patternCount');
+    for (let k = 1; k < n; k++) copies.push(tool.clone().rotate(360 * k / n, [0, 0, 0], [0, 0, 1]));
+  } else {
+    const nx = Math.round(f.nx), ny = Math.round(f.ny);
+    if (!(nx >= 1 && ny >= 1 && nx * ny >= 2)) throw new Error('err.patternCount');
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) if (i || j) copies.push(tool.clone().translate([i * f.dx, j * f.dy, 0]));
+  }
+  return copies.reduce((a, b) => a.fuse(b));
+}
+
 // Errors are i18n keys (see locales/). OpenCascade's own failures map to one per feature type.
-const FAIL = { extrude: 'err.extrudeFailed', fillet: 'err.filletFailed', chamfer: 'err.chamferFailed', hole: 'err.holeFailed' };
+const FAIL = { extrude: 'err.extrudeFailed', revolve: 'err.revolveFailed', fillet: 'err.filletFailed', chamfer: 'err.chamferFailed', hole: 'err.holeFailed', pattern: 'err.patternFailed' };
 
 // Replays the timeline. A failing feature is skipped and reported, like a red item in Fusion.
 export function rebuild(features) {
   let body = null;
-  const errors = {}, planes = {};
+  const errors = {}, planes = {}, tools = {};
+  const patterned = new Set(features.filter(f => f.type === 'pattern').map(f => f.of));
+  // Booleans consume their inputs, so keep a copy of the tool when a pattern will need it later.
+  const apply = (f, solid, op) => {
+    if (patterned.has(f.id)) tools[f.id] = { solid: solid.clone(), op };
+    if (op === 'cut') {
+      if (!body) throw new Error('err.nothingToCut');
+      body = clean(body.cut(solid));
+    } else body = body ? clean(body.fuse(solid)) : solid;
+  };
   for (const f of features) {
     try {
       if (f.type === 'sketch') {
         planes[f.id] = resolvePlane(f.plane, body);
-      } else if (f.type === 'extrude') {
+      } else if (f.type === 'extrude' || f.type === 'revolve') {
         const sk = features.find(s => s.id === f.sketch);
         if (!sk || !planes[sk.id]) throw new Error('err.pickSketch');
-        const solid = extrudeSketch(sk, planes[sk.id], f.distance);
-        if (f.op === 'cut') {
-          if (!body) throw new Error('err.nothingToCut');
-          body = clean(body.cut(solid));
-        } else body = body ? clean(body.fuse(solid)) : solid;
+        apply(f, f.type === 'extrude' ? extrudeSketch(sk, planes[sk.id], f.distance) : revolveSketch(sk, planes[sk.id], f.axis, f.angle), f.op);
+      } else if (f.type === 'pattern') {
+        if (!tools[f.of]) throw new Error('err.patternPick');
+        if (!body) throw new Error('err.nothingToCut');
+        apply(f, patternCopies(tools[f.of].solid, f), tools[f.of].op);
       } else if (f.type === 'fillet' || f.type === 'chamfer') {
         if (!body) throw new Error('err.nothingToRound');
         if (!(f.r > 0)) throw new Error('err.sizePositive');
@@ -117,7 +158,7 @@ export function rebuild(features) {
         const pl = resolvePlane({ face: f.face }, body);
         const p = add(add(pl.o, pl.u, f.x), pl.v, f.y);
         const depth = f.depth > 0 ? f.depth : 1000; // 0 = through all
-        body = clean(body.cut(R.makeCylinder(f.d / 2, depth + 1, add(p, pl.n, 1), pl.n.map(x => -x))));
+        apply(f, R.makeCylinder(f.d / 2, depth + 1, add(p, pl.n, 1), pl.n.map(x => -x)), 'cut');
       }
     } catch (e) {
       errors[f.id] = e instanceof Error && e.message.startsWith('err.') ? e.message : FAIL[f.type] || 'err.failed';
