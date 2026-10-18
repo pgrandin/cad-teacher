@@ -99,6 +99,7 @@ export default {
 
   'learn.tip': 'La construction libre, c’est pour Fusion 360. Ici tu apprends les gestes que tu y utiliseras : esquisse, extrusion, puis des fonctions par-dessus.',
   'learn.back': '← Toutes les leçons',
+  'learn.startHere': 'Commence ici',
   'learn.challengeBadge': 'Défi',
   'learn.challenge': 'Défi : {title}',
   'learn.build': 'Construis cette pièce. Utilise les fonctions que tu veux.',

@@ -99,6 +99,7 @@ export default {
 
   'learn.tip': 'Para construir libremente está Fusion 360. Aquí aprendes los movimientos que usarás allí: boceto, extrusión y luego operaciones encima.',
   'learn.back': '← Todas las lecciones',
+  'learn.startHere': 'Empieza aquí',
   'learn.challengeBadge': 'Reto',
   'learn.challenge': 'Reto: {title}',
   'learn.build': 'Construye esta pieza. Usa las operaciones que quieras.',

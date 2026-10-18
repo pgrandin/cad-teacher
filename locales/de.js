@@ -99,6 +99,7 @@ export default {
 
   'learn.tip': 'Zum freien Bauen gibt es Fusion 360. Hier lernst du die Handgriffe, die du dort brauchst: Skizze, Extrusion, dann Features obendrauf.',
   'learn.back': '← Alle Lektionen',
+  'learn.startHere': 'Fang hier an',
   'learn.challengeBadge': 'Herausforderung',
   'learn.challenge': 'Herausforderung: {title}',
   'learn.build': 'Baue dieses Teil. Nimm dafür die Features, die du willst.',

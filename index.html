@@ -32,7 +32,16 @@
   main { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
   #learn { background: #fff; border-right: 1px solid var(--line); overflow: auto; padding: 14px 16px; }
   #learn h2 { font-size: 15px; margin: 4px 0 8px; }
-  #learn h2 + .tip { margin-top: -4px; }
+  .course-card { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 10px; padding: 0 10px; }
+  .course-card summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 14px; font-weight: 600; cursor: pointer; list-style: none; }
+  .course-card summary::-webkit-details-marker { display: none; }
+  .course-card summary::before { content: '▸'; color: var(--muted); }
+  .course-card[open] summary::before { content: '▾'; }
+  .course-card summary span { flex: 1; }
+  .course-card summary small { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+  .course-card[open] summary { border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+  .tag { font-style: normal; font-size: 10px; font-weight: 700; color: #fff; background: var(--ok); border-radius: 3px; padding: 1px 5px; margin-left: 4px; vertical-align: 1px; }
+  .menu button.next { border-color: var(--blue); box-shadow: inset 3px 0 0 var(--blue); }
   .menu { list-style: none; padding: 0; margin: 0 0 16px; }
   .menu button { display: flex; gap: 8px; align-items: center; width: 100%; text-align: left; padding: 8px 10px; margin: 3px 0; border: 1px solid var(--line); border-radius: 4px; background: #fff; cursor: pointer; }
   .menu button:hover { border-color: var(--blue); background: #f2f8fc; }

@@ -765,15 +765,22 @@ const volOf = m => (m ? Math.round(m.volume).toLocaleString(lang) + ' mm³' : '-
 // Text of a lesson or challenge ({ def, challenge }) from the locale files.
 const lt = (x, k) => t(`${x.challenge ? 'challenge' : 'lesson'}.${x.def.id}.${k}`);
 
+// Courses fold open like <details>. Only the course being worked on starts open, so every course title fits.
+const openCourses = new Set();
 function renderLearn() {
   const el = $('#learn');
   if (!lesson) {
-    const done = doneIds();
+    const done = doneIds(), next = ALL.find(x => !done.includes(x.def.id));
+    if (!openCourses.size) openCourses.add((next || ALL[0]).def.course);
     const badge = (x, i) => (done.includes(x.def.id) ? '✅' : x.challenge ? `<b class="star" title="${t('learn.challengeBadge')}">★</b>` : `<b>${i + 1}</b>`);
-    const item = (x, i) => `<li><button data-open="${x.def.id}">${badge(x, i)} ${lt(x, 'title')}</button></li>`;
-    el.innerHTML = COURSES.map(c => `<h2>${t(`course.${c}.title`)}</h2><p class="tip">${t(`course.${c}.intro`)}</p>
-      <ol class="menu">${ALL.filter(x => x.def.course === c).map(item).join('')}</ol>`).join('') +
-      `<p class="tip">${t('learn.tip')}</p>`;
+    const item = (x, i) => `<li><button data-open="${x.def.id}"${x === next ? ' class="next"' : ''}>${badge(x, i)} ${lt(x, 'title')}</button></li>`;
+    el.innerHTML = COURSES.map((c, ci) => {
+      const items = ALL.filter(x => x.def.course === c), n = items.filter(x => done.includes(x.def.id)).length;
+      const start = ci === 0 && !done.length ? ` <em class="tag">${t('learn.startHere')}</em>` : '';
+      return `<details class="course-card" data-course="${c}"${openCourses.has(c) ? ' open' : ''}>
+        <summary><span>${t(`course.${c}.title`)}${start}</span><small>${n}/${items.length}</small></summary>
+        <p class="tip">${t(`course.${c}.intro`)}</p><ol class="menu">${items.map(item).join('')}</ol></details>`;
+    }).join('') + `<p class="tip">${t('learn.tip')}</p>`;
     return;
   }
   const { def, challenge, steps, step } = lesson;
@@ -801,10 +808,25 @@ $('#learn').addEventListener('click', e => {
     return openLesson(x.def, x.challenge);
   }
   const a = el.dataset.act;
-  if (a === 'back') { lesson = acmd = null; clear(goalGroup); setAssembly(null); renderLearn(); refresh(); }
+  if (a === 'back') {
+    // Reopen this lesson's course, or (once it is all done) let the menu open the next unfinished one.
+    const c = lesson.def.course, done = doneIds();
+    openCourses.clear();
+    if (ALL.some(x => x.def.course === c && !done.includes(x.def.id))) openCourses.add(c);
+    lesson = acmd = null;
+    clear(goalGroup);
+    setAssembly(null);
+    renderLearn();
+    refresh();
+  }
   else if (a === 'next') { const x = ALL[ALL.findIndex(x => x.def === lesson.def) + 1]; openLesson(x.def, x.challenge); }
   else if (a === 'restart') openLesson(lesson.def, lesson.challenge);
 });
+// <details> toggle events don't bubble: listen in the capture phase to remember what the kid opened.
+$('#learn').addEventListener('toggle', e => {
+  const c = e.target.dataset?.course;
+  if (c) e.target.open ? openCourses.add(c) : openCourses.delete(c);
+}, true);
 $('#learn').addEventListener('change', e => {
   if (e.target.dataset.act !== 'goal') return;
   showGoal = goalGroup.visible = e.target.checked;

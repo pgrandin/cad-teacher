@@ -101,6 +101,7 @@ export default {
 
   'learn.tip': 'Free building is what Fusion 360 is for. Here you learn the moves you will use there: sketch, extrude, then add features on top.',
   'learn.back': '← All lessons',
+  'learn.startHere': 'Start here',
   'learn.challengeBadge': 'Challenge',
   'learn.challenge': 'Challenge: {title}',
   'learn.build': 'Build this part. Use any features you like.',
