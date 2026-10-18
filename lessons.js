@@ -2,7 +2,7 @@
 // Challenges only have a goal. Goals are feature lists, built by the same engine as the kid's part.
 // The words live in locales/*.js under lesson.<id>.* and challenge.<id>.* (one step text per check).
 // Every lesson and challenge belongs to a course; the menu shows courses in this order.
-export const COURSES = ['basics', 'robot', 'elf', 'spin'];
+export const COURSES = ['basics', 'robot', 'elf', 'spin', 'print'];
 
 const rect = (x, y, w, h) => ({ kind: 'rect', x, y, w, h });
 const circle = (x, y, d) => ({ kind: 'circle', x, y, d });
@@ -35,9 +35,35 @@ const drew = (kind, p = {}) => s => (s.draft || []).some(x => x.kind === kind &&
 const drewMany = (kind, n) => s => (s.draft || []).filter(x => x.kind === kind).length >= n;
 const made = (type, n) => s => s.mode === 'model' && s.features.slice(s.startCount).filter(f => f.type === type).length >= n;
 const matches = s => s.match;
+// Print checks: the print view is on, and nothing would print in thin air.
+const printOn = s => !!s.print?.on;
+const printClean = s => !!s.print?.on && s.print.area < 1;
 // Assembly checks look at the committed joints: which parts they connect and how.
 const partsOf = (s, j) => [j.moving, j.fixed].map(p => s.asm.components.find(c => c.id === p?.comp)?.part).sort().join('+');
 const joined = (a, b, type = 'revolute') => s => !!s.asm?.joints.some(j => j.type === type && partsOf(s, j) === [a, b].sort().join('+'));
+
+const TABLE = [
+  { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [circle(-35, -20, 6), circle(35, -20, 6), circle(35, 20, 6), circle(-35, 20, 6)] },
+  { type: 'extrude', id: 'e1', sketch: 's1', distance: 40, op: 'join' },
+  { type: 'sketch', id: 's2', plane: { face: { n: [0, 0, 1], c: [35, 20, 40] } }, shapes: [rect(0, 0, 80, 50)] },
+  { type: 'extrude', id: 'e2', sketch: 's2', distance: 4, op: 'join' },
+  { type: 'fillet', id: 'f1', edges: cornerEdges(80, 50, 4, 0, 0, 40), r: 5 },
+];
+const SHELF = [
+  { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [rect(0, 0, 50, 20)] },
+  { type: 'extrude', id: 'e1', sketch: 's1', distance: 70, op: 'join' },
+  { type: 'sketch', id: 's2', plane: { face: { n: [0, -1, 0], c: [0, -10, 35] } }, shapes: [rect(0, 13, 44, 18), rect(0, 35, 44, 18), rect(0, 57, 44, 18)] },
+  { type: 'extrude', id: 'e2', sketch: 's2', distance: -16, op: 'cut' },
+];
+// A T: a post with a top plate whose two arms stick straight out (10 mm each side).
+const T_SHAPE = [
+  { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [rect(0, 0, 10, 10)] },
+  { type: 'extrude', id: 'e1', sketch: 's1', distance: 20, op: 'join' },
+  { type: 'sketch', id: 's2', plane: { face: top(20) }, shapes: [rect(0, 0, 30, 10)] },
+  { type: 'extrude', id: 'e2', sketch: 's2', distance: 4, op: 'join' },
+];
+const FRONT = c => ({ face: { n: [0, -1, 0], c } });
+const SIDE_BLOCK = block(30, 10, 20);
 
 export const LESSONS = [
   {
@@ -157,13 +183,7 @@ export const LESSONS = [
     id: 'elf-table',
     course: 'elf',
     start: [],
-    goal: [
-      { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [circle(-35, -20, 6), circle(35, -20, 6), circle(35, 20, 6), circle(-35, 20, 6)] },
-      { type: 'extrude', id: 'e1', sketch: 's1', distance: 40, op: 'join' },
-      { type: 'sketch', id: 's2', plane: { face: { n: [0, 0, 1], c: [35, 20, 40] } }, shapes: [rect(0, 0, 80, 50)] },
-      { type: 'extrude', id: 'e2', sketch: 's2', distance: 4, op: 'join' },
-      { type: 'fillet', id: 'f1', edges: cornerEdges(80, 50, 4, 0, 0, 40), r: 5 },
-    ],
+    goal: TABLE,
     steps: [drewMany('circle', 4), made('extrude', 1), made('sketch', 2), made('extrude', 2), matches],
   },
   {
@@ -185,12 +205,7 @@ export const LESSONS = [
     id: 'elf-shelf',
     course: 'elf',
     start: [],
-    goal: [
-      { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [rect(0, 0, 50, 20)] },
-      { type: 'extrude', id: 'e1', sketch: 's1', distance: 70, op: 'join' },
-      { type: 'sketch', id: 's2', plane: { face: { n: [0, -1, 0], c: [0, -10, 35] } }, shapes: [rect(0, 13, 44, 18), rect(0, 35, 44, 18), rect(0, 57, 44, 18)] },
-      { type: 'extrude', id: 'e2', sketch: 's2', distance: -16, op: 'cut' },
-    ],
+    goal: SHELF,
     steps: [made('extrude', 1), made('sketch', 2), matches],
   },
   {
@@ -231,6 +246,47 @@ export const LESSONS = [
       { type: 'pattern', id: 'p1', of: 'e2', kind: 'rect', nx: 4, dx: 8, ny: 2, dy: 8 },
     ],
     steps: [made('extrude', 1), made('extrude', 2), matches],
+  },
+  {
+    // 45° rule: gussets (45° wedges) under the T's arms remove the overhang.
+    id: 'print-rule',
+    course: 'print',
+    start: T_SHAPE,
+    goal: [
+      ...T_SHAPE,
+      { type: 'sketch', id: 's3', plane: FRONT([0, -5, 12]), shapes: [poly([5, 10], [15, 20], [5, 20]), poly([-5, 10], [-5, 20], [-15, 20])] },
+      { type: 'extrude', id: 'e3', sketch: 's3', distance: -10, op: 'join' },
+    ],
+    steps: [printOn, made('sketch', 1), s => s.match && printClean(s)],
+  },
+  {
+    // Orientation: the table upside down needs no supports.
+    id: 'print-flip',
+    course: 'print',
+    start: TABLE,
+    goal: TABLE,
+    steps: [printOn, printClean],
+  },
+  {
+    // A round hole on its side has an overhanging top; a diamond has only 45° walls.
+    id: 'print-holes',
+    course: 'print',
+    start: [...SIDE_BLOCK, { type: 'hole', id: 'h1', face: FRONT([0, -5, 10]).face, x: 0, y: 10, d: 10, depth: 0 }],
+    goal: [
+      ...SIDE_BLOCK,
+      { type: 'sketch', id: 's2', plane: FRONT([0, -5, 10]), shapes: [poly([5, 10], [0, 15], [-5, 10], [0, 5])] },
+      { type: 'extrude', id: 'e2', sketch: 's2', distance: -10, op: 'cut' },
+    ],
+    steps: [printOn, s => s.mode === 'model' && !s.features.some(f => f.type === 'hole'),
+      s => s.mode === 'model' && s.features.filter(f => f.type === 'sketch').length >= 2, s => s.match && printClean(s)],
+  },
+  {
+    // Find the face to lay the bookshelf on (its back) so no shelf has a ceiling.
+    id: 'print-shelf',
+    course: 'print',
+    start: SHELF,
+    goal: SHELF,
+    steps: [printOn, printClean],
   },
 ];
 

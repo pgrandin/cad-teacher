@@ -200,6 +200,19 @@ export const meshOf = body => ({
   edges: body.meshEdges({ tolerance: 0.05, angularTolerance: 0.2 }),
 });
 
+// The body as it sits on the printer bed: the face with outward normal n down (if given), centered,
+// resting on z = 0. Exported STL files use this, so they open in the slicer ready to print.
+export function onBed(body, n) {
+  let b = body.clone();
+  if (n) {
+    const axis = cross(n, [0, 0, -1]), sin = Math.hypot(...axis), cos = -n[2];
+    if (sin > 1e-9) b = b.rotate(Math.atan2(sin, cos) * 180 / Math.PI, [0, 0, 0], axis.map(x => x / sin));
+    else if (cos < 0) b = b.rotate(180, [0, 0, 0], [1, 0, 0]);
+  }
+  const [min, max] = b.boundingBox.bounds;
+  return b.translate([-(min[0] + max[0]) / 2, -(min[1] + max[1]) / 2, -min[2]]);
+}
+
 export const stlOf = body => body.blobSTL({ binary: true });
 export const stepOf = body => body.blobSTEP();
 

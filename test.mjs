@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
 import { LANGS } from './i18n.js';
 import { poses } from './assembly.js';
+import { overhangs, printMatrix } from './print.js';
 import { Vector3 } from './vendor/three.module.js';
 
 await cad.init(fileURLToPath(new URL('./vendor/replicad_single.wasm', import.meta.url)));
@@ -40,6 +41,10 @@ const expected = {
   'spin-wheel': PI * 36 * 6 + PI * (324 - 144) * 6 + 6 * 4 * integrate(y => Math.sqrt(144 - y * y) - Math.sqrt(36 - y * y), -1.5, 1.5) - PI * 1.75 ** 2 * 6,
   'spin-brick': 32 * 16 * 10 + 8 * PI * 2.5 ** 2 * 2,
   'spin-button': PI * 100 * 3 - 4 * PI * 1 * 3,
+  'print-rule': 10 * 10 * 20 + 30 * 10 * 4 + 2 * (10 * 10 / 2) * 10,
+  'print-flip': 4 * PI * 9 * 40 + 80 * 50 * 4 - 4 * (25 - 25 * PI / 4) * 4,
+  'print-holes': 30 * 10 * 20 - 50 * 10,
+  'print-shelf': 50 * 20 * 70 - 3 * 44 * 18 * 16,
 };
 
 for (const l of [...LESSONS, ...CHALLENGES]) {
@@ -116,6 +121,22 @@ near3(tips[0], [1, 0, 24 + 48], 'at 0° the link stands straight up');
 assert.equal(poses(comps, [{ id: 'j', moving: { comp: 'base', rim: pivot }, fixed: { comp: 'base', rim: pivot } }]).errors.j, 'err.jointSamePart');
 const twice = [1, 2].map(i => ({ id: 'j' + i, angle: 0, moving: { comp: 'link', rim: linkRim }, fixed: { comp: 'base', rim: pivot } }));
 assert.deepEqual(poses(comps, twice).errors, { j2: 'err.jointPlaced' });
+
+// Printing: overhang area for a part laid on the bed with face normal n down (or as designed).
+const goalOf = id => LESSONS.find(l => l.id === id);
+const TABLE_GOAL = () => goalOf('elf-table').goal;
+const hang = (fs, n) => { const f = cad.meshOf(cad.rebuild(fs).body).faces; return overhangs(f, printMatrix(f, n)).area; };
+near(hang(goalOf('print-rule').start), 200);                 // the T's arms
+assert.ok(hang(goalOf('print-rule').goal) < 0.01, 'gussets at 45° print clean');
+assert.ok(hang(goalOf('print-flip').start) > 3000, 'table on its legs: whole top overhangs');
+assert.ok(hang(goalOf('print-flip').start, [0, 0, 1]) < 0.01, 'table upside down prints clean');
+assert.ok(hang(goalOf('print-holes').start) > 50, 'round hole on its side has a ceiling');
+assert.ok(hang(goalOf('print-holes').goal) < 0.01, 'diamond hole prints clean');
+assert.ok(hang(goalOf('print-shelf').start, [0, 1, 0]) < 0.01, 'bookshelf on its back prints clean');
+assert.ok(hang(goalOf('print-shelf').start, [0, -1, 0]) > 1000, 'bookshelf on its front does not');
+// Exported STL placement: upside-down table rests on z = 0 with its top down.
+const upside = cad.metrics(cad.onBed(cad.rebuild(TABLE_GOAL()).body, [0, 0, 1]));
+assert.ok(Math.abs(upside.min[2]) < 1e-6 && Math.abs(upside.max[2] - 44) < 1e-6, 'onBed rests the part on z = 0');
 
 // i18n: every language has every English key, with the same shape and placeholders.
 const { en } = LANGS;

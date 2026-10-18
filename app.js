@@ -9,6 +9,7 @@ import * as cad from './cad.js';
 import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
 import { t, tn, has, lang, setLang, LANGS } from './i18n.js';
 import { poses } from './assembly.js';
+import { overhangs, printMatrix } from './print.js';
 import { VERSION } from './version.js';
 
 const $ = s => document.querySelector(s);
@@ -24,6 +25,9 @@ let pickingPlane = false;      // Create Sketch is waiting for a plane or face c
 let lesson = null;             // { def, challenge, steps, step, startCount, goal, mine, match }
 let asm = null;                // assembly lesson: { components, joints, objs, driven }
 let acmd = null;               // open assembly command: { kind: 'joint', index, joint } or { kind: 'drive', angles }
+let printMode = false;         // print check: the part sits on the bed, overhangs show red
+let printDown = null;          // outward normal of the face laid on the bed (null = as designed)
+let printArea = 0;             // overhang area (mm²) in the current print placement
 let hover = null;
 let showGoal = true;
 let showDiff = false;           // color what is missing (green) / extra (red) compared to the goal
@@ -75,7 +79,13 @@ const M = {
   // Differences show through the part (depthTest off), so a misplaced hole reads as red + green.
   missing: new THREE.MeshBasicMaterial({ color: 0x2ecc71, transparent: true, opacity: 0.55, depthTest: false, side: THREE.DoubleSide }),
   extra: new THREE.MeshBasicMaterial({ color: 0xe74c3c, transparent: true, opacity: 0.55, depthTest: false, side: THREE.DoubleSide }),
+  // Overhangs face down, so the view from above can't see them: show them through the part.
+  overhang: new THREE.MeshBasicMaterial({ color: 0xe53935, transparent: true, opacity: 0.7, depthTest: false, side: THREE.DoubleSide }),
 };
+const printGroup = new THREE.Group(); // red overhang overlay, placed like the part
+const bed = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), new THREE.MeshBasicMaterial({ color: 0x5aa9e6, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }));
+bed.position.z = -0.05;
+bed.visible = false;
 const fat = (positions, mat) => {
   const l = new LineSegments2(new LineSegmentsGeometry().setPositions(positions), mat);
   l.renderOrder = 10;
@@ -83,7 +93,8 @@ const fat = (positions, mat) => {
 };
 
 const shownGroup = new THREE.Group(), hlGroup = new THREE.Group(), sketchGroup = new THREE.Group(), goalGroup = new THREE.Group(), diffGroup = new THREE.Group();
-scene.add(shownGroup, hlGroup, sketchGroup, goalGroup, diffGroup);
+scene.add(shownGroup, hlGroup, sketchGroup, goalGroup, diffGroup, printGroup, bed);
+for (const g of [shownGroup, hlGroup, printGroup]) g.matrixAutoUpdate = false;
 const clear = g => {
   g.traverse(o => { if (o !== g && !o.userData.keep) o.geometry?.dispose(); });
   g.clear();
@@ -245,10 +256,12 @@ function fitView(body) {
   return { c, r };
 }
 function home() {
-  const { c, r } = asm ? fitBox(new THREE.Box3().setFromObject(asmGroup)) : fitView(built.body);
+  const { c, r } = asm ? fitBox(new THREE.Box3().setFromObject(asmGroup))
+    : printMode && shown ? fitBox(new THREE.Box3().setFromObject(shownGroup)) : fitView(built.body);
   camera.up.set(0, 0, 1);
   controls.target.set(...c);
-  camera.position.copy(V(c)).addScaledVector(new THREE.Vector3(1, -1.3, 1).normalize(), r * 3.6);
+  // The print view looks from low down, to see the undersides that need support.
+  camera.position.copy(V(c)).addScaledVector(new THREE.Vector3(1, -1.3, printMode ? 0.3 : 1).normalize(), r * 3.6);
   controls.update();
   draw();
 }
@@ -391,7 +404,8 @@ function editFeature(i) {
 // STL is for the 3D printer; STEP opens in Fusion (File → Open) to keep designing there.
 function exportFile(kind) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(kind === 'step' ? cad.stepOf(built.body) : cad.stlOf(built.body));
+  // STEP keeps the design position (to keep designing in Fusion); STL is placed on the bed, ready to print.
+  a.href = URL.createObjectURL(kind === 'step' ? cad.stepOf(built.body) : cad.stlOf(cad.onBed(built.body, printDown)));
   a.download = `${lesson?.def.id || 'part'}.${kind}`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -410,6 +424,9 @@ function act(id, fromKey = false) {
   if (id === 'undo') return undoLast();
   if (id === 'stl' || id === 'step') return exportFile(id);
   cmd = null;
+  hover = null;
+  printMode = id === 'print' && !printMode;
+  if (id === 'print') { pickingPlane = false; refresh(); return home(); }
   pickingPlane = id === 'sketch';
   if (pickingPlane) return refresh();
   startCommand(id);
@@ -423,6 +440,7 @@ function escape() {
   } else {
     cmd = acmd = null;
     pickingPlane = false;
+    if (printMode) { printMode = false; refresh(); return home(); }
   }
   refresh();
 }
@@ -437,7 +455,7 @@ function setRay(e) {
 }
 
 function pick(e) {
-  const wantEdge = !!cmd?.sel, wantFace = pickingPlane || cmd?.feature.type === 'hole';
+  const wantEdge = !!cmd?.sel, wantFace = pickingPlane || printMode || cmd?.feature.type === 'hole';
   if (!wantEdge && !wantFace) return null;
   setRay(e);
   const meshHit = picker && ray.intersectObject(picker.mesh)[0];
@@ -466,6 +484,7 @@ function pick(e) {
 function modelClick(e) {
   const h = pick(e);
   if (!h) return;
+  if (printMode) { printDown = h.ref.n; hover = null; refresh(); return home(); } // lay this face on the bed
   if (pickingPlane) return enterSketch(features.length, { type: 'sketch', id: 'u' + ++uid, plane: h.kind === 'plane' ? { base: h.id } : { face: h.ref }, shapes: [] });
   if (h.kind === 'edge') {
     if (cmd.sel.has(h.id)) cmd.sel.delete(h.id);
@@ -585,6 +604,7 @@ const ICON = {
   undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'),
   stl: svg('<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>'),
   step: svg('<path d="M12 3v9M8 8l4 4 4-4"/><path d="M4 14l8 4 8-4M4 14v4l8 4 8-4v-4"/>'),
+  print: svg('<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="1"/><path d="M7 14h10v7H7z"/><path d="M10 17h4" stroke-width="2"/>'),
   revolve: svg('<path d="M12 3v18" stroke-dasharray="2 2"/><path d="M12 6c5 0 7 2 7 6s-2 6-7 6"/><path d="M8 16l-2 2 2 2"/><path d="M6 18h6"/>'),
   pattern: svg('<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1" opacity=".55"/><rect x="3" y="15" width="6" height="6" rx="1" opacity=".55"/><rect x="15" y="15" width="6" height="6" rx="1" opacity=".55"/>'),
   joint: svg('<circle cx="7" cy="12" r="4"/><circle cx="17" cy="12" r="4"/><circle cx="7" cy="12" r="1" fill="currentColor"/><path d="M11 12h2"/>'),
@@ -620,7 +640,7 @@ function renderToolbar() {
     ]) + group('modify', [
       toolBtn('fillet', { on: type === 'fillet', disabled: !body, key: 'F' }),
       toolBtn('chamfer', { on: type === 'chamfer', disabled: !body }),
-    ]) + group('file', [
+    ]) + group('print', [toolBtn('print', { on: printMode, disabled: !body })]) + group('file', [
       toolBtn('undo', { disabled: !undoStack.length, key: 'Ctrl+Z' }),
       toolBtn('stl', { disabled: !body }),
       toolBtn('step', { disabled: !body }),
@@ -750,6 +770,7 @@ $('#chips').addEventListener('click', e => {
 function hintText() {
   if (acmd) return t(acmd.kind === 'drive' ? 'hint.drive' : `hint.joint${[acmd.joint.moving, acmd.joint.fixed].filter(Boolean).length}`);
   if (asm) return t('hint.assembly');
+  if (printMode) return `${printArea >= 1 ? t('print.area', { n: Math.round(printArea) }) : t('print.none')} · ${t('hint.print')}`;
   if (pickingPlane) return t('hint.plane');
   if (sketch) return t(sketch.tool ? `hint.${sketch.tool}${sketch.pts.length ? 1 : 0}` : 'hint.sketch');
   return t(cmd ? `hint.${cmd.feature.type}` : 'hint.model');
@@ -777,7 +798,7 @@ const workKey = id => 'cad-teacher-work:' + id;
 const loadWork = id => { try { return JSON.parse(localStorage.getItem(workKey(id))); } catch { return null; } };
 function saveWork() {
   if (!lesson) return;
-  try { localStorage.setItem(workKey(lesson.def.id), JSON.stringify({ features, joints: asm?.joints, step: lesson.step })); } catch { /* storage full or blocked */ }
+  try { localStorage.setItem(workKey(lesson.def.id), JSON.stringify({ features, joints: asm?.joints, step: lesson.step, printDown })); } catch { /* storage full or blocked */ }
 }
 
 function openLesson(def, challenge, fresh = false) {
@@ -786,6 +807,8 @@ function openLesson(def, challenge, fresh = false) {
   sketchControls(false);
   undoStack.length = 0;
   const saved = !fresh && loadWork(def.id);
+  printMode = false;
+  printDown = saved?.printDown || null;
   features = structuredClone(saved?.features || def.start || []);
   clear(goalGroup);
   setAssembly(def.assembly);
@@ -807,7 +830,7 @@ function checkLesson() {
   const s = {
     features, mode: sketch ? 'sketch' : 'model', draft: sketch?.feature.shapes, sketchOnFace: !!sketch?.feature.plane.face, sketchBase: sketch?.feature.plane.base,
     dialog: acmd?.kind ?? cmd?.feature.type, selected: cmd?.sel?.size || 0, holeFace: !!cmd?.feature.face, match: lesson.match, startCount: lesson.startCount,
-    asm, picked: acmd?.kind === 'joint' ? [acmd.joint.moving, acmd.joint.fixed].filter(Boolean).length : 0, driven: !!asm?.driven,
+    print: { on: printMode, area: printArea }, asm, picked: acmd?.kind === 'joint' ? [acmd.joint.moving, acmd.joint.fixed].filter(Boolean).length : 0, driven: !!asm?.driven,
   };
   const before = lesson.step;
   while (lesson.step < lesson.steps.length && lesson.steps[lesson.step](s)) lesson.step++;
@@ -1100,12 +1123,36 @@ function renderJointTimeline() {
   }).join('') || `<span class="empty">${t('timeline.empty')}</span>`;
 }
 
+// ---------- print check ----------
+// The part laid on the bed (printDown face down, or as designed), with every surface that would print
+// in thin air painted red. The part, its highlights and the overlay share one placement matrix.
+function drawPrint() {
+  clear(printGroup);
+  const m = printMode && shown ? printMatrix(shown.m.faces, printDown) : new THREE.Matrix4();
+  for (const g of [shownGroup, hlGroup, printGroup]) { g.matrix.copy(m); g.matrixWorldNeedsUpdate = true; g.updateMatrixWorld(true); }
+  bed.visible = printMode;
+  for (const g of [goalGroup, sketchGroup]) g.visible = !printMode && (g !== goalGroup || showGoal);
+  printArea = 0;
+  if (!printMode || !shown) return;
+  const { tris, area } = overhangs(shown.m.faces, m);
+  printArea = area;
+  if (!tris.length) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(shown.m.faces.vertices, 3));
+  geo.setIndex(tris);
+  const red = new THREE.Mesh(geo, M.overhang);
+  red.renderOrder = 6;
+  printGroup.add(red);
+}
+
 // ---------- refresh ----------
 function refresh(full = true) {
+  if (cmd || sketch || pickingPlane || asm || !built.body) printMode = false; // print check is for the finished part
   setShown(cmd ? cmd.preview.body : sketch ? sketch.before.body : built.body);
-  setPicker(cmd ? cmd.before.body : pickingPlane ? built.body : null);
+  setPicker(cmd ? cmd.before.body : pickingPlane || printMode ? built.body : null);
   grid.visible = !sketch;
-  diffGroup.visible = !sketch && !cmd; // differences are about the finished part, not a preview
+  diffGroup.visible = !sketch && !cmd && !printMode; // differences are about the finished part, not a preview
+  drawPrint();
   originPlanes.forEach(p => (p.visible = pickingPlane));
   canvas.style.cursor = sketch?.tool ? 'crosshair' : '';
   if (!sketch?.tool) $('#readout').hidden = true;
