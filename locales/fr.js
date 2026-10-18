@@ -113,7 +113,7 @@ export default {
   'learn.restart': 'Recommencer',
 
   'lesson.block.title': 'Ton premier bloc',
-  'lesson.block.intro': 'Les vraies pièces de CAO commencent par un dessin à plat qu’on appelle une <b>esquisse</b>. Ensuite, on la tire en 3D. Ça s’appelle une <b>extrusion</b>.',
+  'lesson.block.intro': 'Les vraies pièces de CAO commencent par un dessin à plat qu’on appelle une <dfn data-term="sketch">esquisse</dfn>. Ensuite, on la tire en 3D. Ça s’appelle une <dfn data-term="extrude">extrusion</dfn>.',
   'lesson.block.steps': [
     'Clique sur <b>Créer une esquisse</b>, puis sur le plan <b>XY</b>, celui posé au sol.',
     'Choisis <b>Rectangle</b>. Clique sur un coin de la grille, puis sur le coin opposé.',
@@ -124,16 +124,16 @@ export default {
   'lesson.block.outro': 'Dans Fusion 360, Créer une esquisse et Extrusion sont les premiers boutons de SOLIDE → CRÉER. Même idée, mêmes noms.',
 
   'lesson.fillet.title': 'Arrondis les coins',
-  'lesson.fillet.intro': 'Un <b>congé</b> arrondit une arête vive. Un congé est aussi une fonction : il se pose par-dessus l’extrusion.',
+  'lesson.fillet.intro': 'Un <dfn data-term="fillet">congé</dfn> arrondit une arête vive. Un congé est aussi une fonction : il se pose par-dessus l’extrusion.',
   'lesson.fillet.steps': [
     'Clique sur <b>Congé</b>.',
     'Clique sur les <b>4 arêtes debout</b> aux coins. Les arêtes choisies deviennent bleues. Une se cache derrière : glisse avec le clic gauche pour faire tourner la pièce.',
     'Mets le Rayon à <b>5</b> et clique sur <b>OK</b>.',
   ],
-  'lesson.fillet.outro': 'Regarde la chronologie en bas : Esquisse → Extrusion → Congé. Fusion garde la même liste, dans le même ordre.',
+  'lesson.fillet.outro': 'Regarde la <dfn data-term="timeline">chronologie</dfn> en bas : Esquisse → Extrusion → Congé. Fusion garde la même liste, dans le même ordre.',
 
   'lesson.hole.title': 'Perce un trou',
-  'lesson.hole.intro': 'L’outil <b>Perçage</b> perce une face. Tu choisis la face, puis tu dis où va le trou et quelle taille il fait.',
+  'lesson.hole.intro': 'L’outil <dfn data-term="hole">Perçage</dfn> perce une face. Tu choisis la face, puis tu dis où va le trou et quelle taille il fait.',
   'lesson.hole.steps': [
     'Clique sur <b>Perçage</b>.',
     'Clique sur la <b>face du dessus</b> du bloc.',
@@ -152,7 +152,7 @@ export default {
   'lesson.stack.outro': '« Joindre » colle la nouvelle forme sur le corps. Fusion choisit Joindre tout seul quand la nouvelle forme touche le corps.',
 
   'lesson.pocket.title': 'Creuse une poche',
-  'lesson.pocket.intro': 'L’extrusion peut aussi enlever de la matière : c’est l’opération <b>Couper</b>. Une distance négative s’enfonce dans la pièce.',
+  'lesson.pocket.intro': 'L’extrusion peut aussi enlever de la matière : c’est l’opération <dfn data-term="cut">Couper</dfn>. Une distance négative s’enfonce dans la pièce.',
   'lesson.pocket.steps': [
     'Crée une esquisse sur la <b>face du dessus</b> du bloc.',
     'Dessine un rectangle avec Centre <b>0</b>, <b>0</b>, Largeur <b>24</b>, Hauteur <b>10</b>. Clique sur <b>Terminer l’esquisse</b>.',
@@ -161,7 +161,7 @@ export default {
   'lesson.pocket.outro': 'Dans Fusion, tu peux aussi tirer la flèche vers le bas, dans la pièce. Elle passe toute seule en Couper.',
 
   'lesson.change.title': 'Change d’avis',
-  'lesson.change.intro': 'C’est le super-pouvoir de Fusion et de SolidWorks. Chaque fonction se souvient de ses nombres. Modifie une fonction du début et tout ce qui suit se met à jour.',
+  'lesson.change.intro': 'C’est le super-pouvoir de Fusion et de SolidWorks. Chaque <dfn data-term="feature">fonction</dfn> se souvient de ses nombres. Modifie une fonction du début et tout ce qui suit se met à jour.',
   'lesson.change.steps': [
     'Dans la chronologie en bas, clique sur <b>Esquisse1</b>.',
     'Change la Largeur de 40 à <b>60</b>. Clique sur <b>Terminer l’esquisse</b>.',
@@ -181,7 +181,7 @@ export default {
   'challenge.cup.brief': ['Boîte de 60 × 40, hauteur 30, centrée sur l’origine', 'Arrondis les 4 arêtes debout : rayon 5', 'Creuse-la par le dessus : une poche de 50 × 30, profonde de 25'],
 
   'course.basics.title': 'Les bases',
-  'course.basics.intro': 'Esquisse, extrusion, puis des fonctions par-dessus. Toutes les pièces de Fusion se font comme ça.',
+  'course.basics.intro': 'Esquisse, extrusion, puis des <dfn data-term="feature">fonctions</dfn> par-dessus. Toutes les pièces de Fusion se font comme ça.',
   'course.robot.title': 'Conçois ton bras robot',
   'course.robot.intro': 'Dessine les pièces d’un petit bras robot, puis assemble-les avec des liaisons et fais-le bouger. Imprime les pièces et assemble-les avec des vis M3.',
   'course.elf.title': 'Meubles d’elfes',
@@ -195,7 +195,7 @@ export default {
     'Fais une <b>Extrusion</b> des deux pattes de <b>24</b> mm vers le haut.',
     'Clique sur <b>Perçage</b>, puis sur la <b>face extérieure</b> d’une patte. Sur une face de côté, Y est la hauteur. Mets X <b>0</b>, Y <b>24</b>, Diamètre <b>3,5</b>, Profondeur <b>0</b>. Le trou traverse les deux pattes !',
   ],
-  'lesson.robot-base.outro': 'Le trou fait 3,5 mm, un peu plus que la vis de 3 mm, pour que le bras puisse tourner. Les ingénieurs appellent cet écart le « jeu ».',
+  'lesson.robot-base.outro': 'Le trou fait 3,5 mm, un peu plus que la vis de 3 mm, pour que le bras puisse tourner. Les ingénieurs appellent cet écart le « <dfn data-term="clearance">jeu</dfn> ».',
   'lesson.robot-link.title': 'Segment de bras',
   'lesson.robot-link.intro': 'Un segment de bras est une barre aux bouts ronds, avec un trou à chaque bout. Les formes qui se chevauchent dans une esquisse se collent : un rectangle et deux cercles font les bouts ronds.',
   'lesson.robot-link.steps': [
@@ -213,7 +213,7 @@ export default {
     'Ajoute un <b>Perçage</b> sur la face du dessus pour la vis de pivot : X <b>14</b>, Y <b>3</b>, Diamètre <b>3,5</b>, Profondeur <b>0</b>.',
     'Les coins intérieurs sont là où les pièces cassent. Ajoute un <b>Congé</b> de Rayon <b>2</b> dans le coin intérieur du crochet.',
   ],
-  'lesson.robot-finger.outro': 'Imprime deux doigts, mets-en un en miroir dans ton trancheur, et tu as une pince. Dans Fusion, l’outil Ligne marche pareil, et tu peux taper la longueur de chaque ligne.',
+  'lesson.robot-finger.outro': 'Imprime deux doigts, mets-en un en miroir dans ton <dfn data-term="slicer">trancheur</dfn>, et tu as une pince. Dans Fusion, l’outil Ligne marche pareil, et tu peux taper la longueur de chaque ligne.',
   'challenge.robot-longlink.title': 'Long segment de bras',
   'challenge.robot-longlink.brief': [
     'Une barre de 12 de large et 6 d’épaisseur, aux bouts ronds, centrée sur l’origine',
@@ -229,7 +229,7 @@ export default {
     'Fais une <b>Extrusion</b> du plateau de <b>4</b> mm avec <b>Joindre</b>.',
     'Arrondis les coins du plateau : fais un <b>Congé</b> sur ses 4 arêtes debout, Rayon <b>5</b>.',
   ],
-  'lesson.elf-table.outro': 'Pour l’imprimer en 3D, retourne-la dans ton trancheur : le dessus de la table bien à plat, les pieds en l’air. Pas besoin de supports !',
+  'lesson.elf-table.outro': 'Pour l’imprimer en 3D, retourne-la dans ton <dfn data-term="slicer">trancheur</dfn> : le dessus de la table bien à plat, les pieds en l’air. Pas besoin de supports !',
   'lesson.elf-chair.title': 'Chaise d’elfe',
   'lesson.elf-chair.intro': 'Une chaise, c’est une petite table avec un dossier. Cette fois, les pieds sont carrés.',
   'lesson.elf-chair.steps': [
@@ -238,7 +238,7 @@ export default {
     'Fais une esquisse sur le <b>dessus de l’assise</b> et dessine le dossier : Centre <b>0</b>, <b>13,5</b>, Largeur <b>30</b>, Hauteur <b>3</b>. Termine et fais une <b>Extrusion</b> de <b>30</b> mm.',
     'Arrondis le haut du dossier : fais un <b>Congé</b> sur ses 2 petites arêtes du haut, Rayon <b>5</b>.',
   ],
-  'lesson.elf-chair.outro': 'Dessiner 4 pieds un par un, c’est long. Dans Fusion, un <b>Réseau rectangulaire</b> copie un pied pour toi. Cherche-le quand tu y seras !',
+  'lesson.elf-chair.outro': 'Dessiner 4 pieds un par un, c’est long. Dans Fusion, un <dfn data-term="pattern">Réseau rectangulaire</dfn> copie un pied pour toi. Cherche-le quand tu y seras !',
   'lesson.elf-shelf.title': 'Bibliothèque d’elfe',
   'lesson.elf-shelf.intro': 'Tu peux aussi dessiner sur le côté d’une pièce. Ici, tu creuses 3 cases d’étagère dans le devant d’une grande boîte.',
   'lesson.elf-shelf.steps': [
@@ -277,7 +277,7 @@ export default {
   'err.jointPlaced': 'Les deux pièces sont déjà placées. Attache une pièce encore libre.',
   'err.jointLoose': 'Aucune des deux pièces n’est encore attachée à la base',
   'lesson.robot-joint.title': 'Ta première liaison',
-  'lesson.robot-joint.intro': 'Les machines sont faites de plein de pièces. Dans un <b>assemblage</b>, chaque pièce est un <b>composant</b>, et les <b>liaisons</b> disent comment les composants se relient et bougent. (Dans SolidWorks, on parle de <b>contraintes</b>.) La base est <b>fixe</b> 📌 : elle ne bouge jamais, et les autres pièces s’y attachent.',
+  'lesson.robot-joint.intro': 'Les machines sont faites de plein de pièces. Dans un <dfn data-term="assembly">assemblage</dfn>, chaque pièce est un <dfn data-term="component">composant</dfn>, et les <dfn data-term="joint">liaisons</dfn> disent comment les composants se relient et bougent. (Dans SolidWorks, on parle de <dfn data-term="mate">contraintes</dfn>.) La base est <dfn data-term="grounded">fixe</dfn> 📌 : elle ne bouge jamais, et les autres pièces s’y attachent.',
   'lesson.robot-joint.steps': [
     'Clique sur <b>Liaison</b> (dans ASSEMBLER).',
     'Clique d’abord la pièce qui <b>bouge</b> : le <b>bord d’un trou</b> à un bout du segment orange. Les bords des trous s’allument quand tu passes dessus.',
@@ -295,4 +295,35 @@ export default {
     'Clique sur <b>Piloter les liaisons</b> et bouge les curseurs. Arrives-tu à faire monter le bras tout en haut ?',
   ],
   'lesson.robot-assembly.outro': 'C’est comme ça qu’on conçoit de vrais robots : d’abord les pièces, puis l’assemblage, et on teste le mouvement à l’écran avant d’imprimer quoi que ce soit.',
+
+  'term.sketch.name': 'Esquisse',
+  'term.sketch.def': 'Un dessin à plat sur un plan ou sur une face plane. Toute forme 3D dans Fusion commence par une esquisse.',
+  'term.extrude.name': 'Extrusion',
+  'term.extrude.def': 'Tire une esquisse plate en 3D sur la distance que tu choisis, comme de la pâte à modeler poussée dans un trou en forme.',
+  'term.fillet.name': 'Congé',
+  'term.fillet.def': 'Arrondit une arête vive. Les congés rendent les pièces plus agréables à tenir et plus solides dans les coins intérieurs.',
+  'term.hole.name': 'Perçage',
+  'term.hole.def': 'Perce un trou rond dans une face plane. Tu choisis où il va, sa largeur et sa profondeur.',
+  'term.cut.name': 'Couper',
+  'term.cut.def': 'Une extrusion qui enlève de la matière au lieu d’en ajouter.',
+  'term.feature.name': 'Fonction',
+  'term.feature.def': 'Une étape de ta conception : une esquisse, une extrusion, un congé, un perçage… Chacune est dans la chronologie et se souvient de ses nombres.',
+  'term.timeline.name': 'Chronologie',
+  'term.timeline.def': 'La rangée de fonctions en bas de l’écran, dans l’ordre où tu les as faites. Clique sur une pour la modifier.',
+  'term.assembly.name': 'Assemblage',
+  'term.assembly.def': 'Plusieurs pièces mises ensemble, comme une vraie machine.',
+  'term.component.name': 'Composant',
+  'term.component.def': 'Une pièce dans un assemblage.',
+  'term.joint.name': 'Liaison',
+  'term.joint.def': 'Dit comment deux composants sont reliés et comment ils peuvent bouger.',
+  'term.mate.name': 'Contrainte',
+  'term.mate.def': 'Le mot de SolidWorks pour une liaison.',
+  'term.grounded.name': 'Fixe',
+  'term.grounded.def': 'Un composant qui ne bouge jamais. Les autres pièces s’y attachent.',
+  'term.clearance.name': 'Jeu',
+  'term.clearance.def': 'Un petit écart laissé exprès, pour que les pièces s’emboîtent ou puissent bouger.',
+  'term.pattern.name': 'Réseau',
+  'term.pattern.def': 'Copie une fonction plusieurs fois en lignes et en colonnes (ou en cercle), pour ne la dessiner qu’une fois.',
+  'term.slicer.name': 'Trancheur',
+  'term.slicer.def': 'Le logiciel qui transforme ton fichier STL en instructions pour l’imprimante 3D.',
 };

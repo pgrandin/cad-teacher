@@ -94,6 +94,8 @@ assert.deepEqual(poses(comps, twice).errors, { j2: 'err.jointPlaced' });
 
 // i18n: every language has every English key, with the same shape and placeholders.
 const { en } = LANGS;
+// Glossary words (<dfn data-term>) must be the same in every language.
+const terms = v => JSON.stringify([...[].concat(v).join(' ').matchAll(/data-term="([\w-]+)"/g)].map(m => m[1]).sort());
 const holes = v => JSON.stringify([...String(v).matchAll(/\{\w+\}/g)].map(m => m[0]).sort());
 for (const [code, d] of Object.entries(LANGS)) {
   assert.deepEqual(Object.keys(d).sort(), Object.keys(en).sort(), `${code}: keys differ from en`);
@@ -101,8 +103,10 @@ for (const [code, d] of Object.entries(LANGS)) {
     assert.equal(Array.isArray(d[k]), Array.isArray(v), `${code}: ${k} shape`);
     if (Array.isArray(v)) assert.equal(d[k].length, v.length, `${code}: ${k} length`);
     else assert.equal(holes(d[k]), holes(v), `${code}: ${k} placeholders`);
+    assert.equal(terms(d[k]), terms(v), `${code}: ${k} glossary words`);
   }
 }
+for (const [, k] of Object.values(en).join(' ').matchAll(/data-term="([\w-]+)"/g)) assert.ok(en[`term.${k}.def`], `glossary: ${k}`);
 for (const l of LESSONS) assert.equal(en[`lesson.${l.id}.steps`].length, l.steps.length, `${l.id}: one text per step`);
 for (const c of CHALLENGES) assert.ok(en[`challenge.${c.id}.brief`], `${c.id}: brief`);
 for (const c of COURSES) assert.ok(en[`course.${c}.title`], `course ${c}: title`);

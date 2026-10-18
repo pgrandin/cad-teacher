@@ -814,6 +814,7 @@ $('#learn').addEventListener('click', e => {
     openCourses.clear();
     if (ALL.some(x => x.def.course === c && !done.includes(x.def.id))) openCourses.add(c);
     lesson = acmd = null;
+    $('#tip').hidden = true;
     clear(goalGroup);
     setAssembly(null);
     renderLearn();
@@ -822,6 +823,19 @@ $('#learn').addEventListener('click', e => {
   else if (a === 'next') { const x = ALL[ALL.findIndex(x => x.def === lesson.def) + 1]; openLesson(x.def, x.challenge); }
   else if (a === 'restart') openLesson(lesson.def, lesson.challenge);
 });
+// Glossary: hovering a <dfn data-term> word in the lesson text shows what it means.
+$('#learn').addEventListener('mouseover', e => {
+  const d = e.target.closest('[data-term]'), tip = $('#tip');
+  if (!d) return;
+  tip.innerHTML = `<b>${t(`term.${d.dataset.term}.name`)}</b>${t(`term.${d.dataset.term}.def`)}`;
+  tip.hidden = false;
+  const r = d.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  tip.style.top = (r.bottom + 6 + h < innerHeight ? r.bottom + 6 : r.top - h - 6) + 'px';
+});
+$('#learn').addEventListener('mouseout', e => { if (e.target.closest('[data-term]')) $('#tip').hidden = true; });
+$('#learn').addEventListener('scroll', () => { $('#tip').hidden = true; });
+
 // <details> toggle events don't bubble: listen in the capture phase to remember what the kid opened.
 $('#learn').addEventListener('toggle', e => {
   const c = e.target.dataset?.course;

@@ -113,7 +113,7 @@ export default {
   'learn.restart': 'Neu anfangen',
 
   'lesson.block.title': 'Dein erster Block',
-  'lesson.block.intro': 'Echte CAD-Teile beginnen als flache Zeichnung, die <b>Skizze</b> heißt. Dann ziehst du sie in 3D hoch. Dieses Hochziehen heißt <b>Extrusion</b>.',
+  'lesson.block.intro': 'Echte CAD-Teile beginnen als flache Zeichnung, die <dfn data-term="sketch">Skizze</dfn> heißt. Dann ziehst du sie in 3D hoch. Dieses Hochziehen heißt <dfn data-term="extrude">Extrusion</dfn>.',
   'lesson.block.steps': [
     'Klicke auf <b>Skizze erstellen</b> und dann auf die flache <b>XY</b>-Ebene am Boden.',
     'Wähle <b>Rechteck</b>. Klicke auf eine Ecke im Raster und dann auf die gegenüberliegende Ecke.',
@@ -124,16 +124,16 @@ export default {
   'lesson.block.outro': 'In Fusion 360 sind Skizze erstellen und Extrusion die ersten Knöpfe unter VOLUMENKÖRPER → ERSTELLEN. Gleiche Idee, gleiche Namen.',
 
   'lesson.fillet.title': 'Runde die Ecken ab',
-  'lesson.fillet.intro': 'Eine <b>Abrundung</b> macht eine scharfe Kante rund. Eine Abrundung ist auch ein Feature: Sie sitzt auf der Extrusion.',
+  'lesson.fillet.intro': 'Eine <dfn data-term="fillet">Abrundung</dfn> macht eine scharfe Kante rund. Eine Abrundung ist auch ein Feature: Sie sitzt auf der Extrusion.',
   'lesson.fillet.steps': [
     'Klicke auf <b>Abrundung</b>.',
     'Klicke auf die <b>4 senkrechten Kanten</b> an den Ecken. Gewählte Kanten werden blau. Eine versteckt sich hinten: Ziehe mit der linken Maustaste, um das Teil zu drehen.',
     'Stelle den Radius auf <b>5</b> und klicke auf <b>OK</b>.',
   ],
-  'lesson.fillet.outro': 'Schau auf die Zeitachse unten: Skizze → Extrusion → Abrundung. Fusion führt dieselbe Liste in derselben Reihenfolge.',
+  'lesson.fillet.outro': 'Schau auf die <dfn data-term="timeline">Zeitachse</dfn> unten: Skizze → Extrusion → Abrundung. Fusion führt dieselbe Liste in derselben Reihenfolge.',
 
   'lesson.hole.title': 'Bohre ein Loch',
-  'lesson.hole.intro': 'Das Werkzeug <b>Bohrung</b> bohrt in eine Fläche. Du wählst die Fläche und sagst dann, wo das Loch hinkommt und wie groß es ist.',
+  'lesson.hole.intro': 'Das Werkzeug <dfn data-term="hole">Bohrung</dfn> bohrt in eine Fläche. Du wählst die Fläche und sagst dann, wo das Loch hinkommt und wie groß es ist.',
   'lesson.hole.steps': [
     'Klicke auf <b>Bohrung</b>.',
     'Klicke auf die <b>obere Fläche</b> des Blocks.',
@@ -152,7 +152,7 @@ export default {
   'lesson.stack.outro': '„Verbinden“ klebt die neue Form an den Körper. Fusion wählt Verbinden von selbst, wenn die neue Form den Körper berührt.',
 
   'lesson.pocket.title': 'Schneide eine Tasche aus',
-  'lesson.pocket.intro': 'Eine Extrusion kann auch Material wegnehmen: Das ist der Vorgang <b>Ausschneiden</b>. Ein negativer Abstand geht in das Teil hinein.',
+  'lesson.pocket.intro': 'Eine Extrusion kann auch Material wegnehmen: Das ist der Vorgang <dfn data-term="cut">Ausschneiden</dfn>. Ein negativer Abstand geht in das Teil hinein.',
   'lesson.pocket.steps': [
     'Erstelle eine Skizze auf der <b>oberen Fläche</b> des Blocks.',
     'Zeichne ein Rechteck mit Mitte <b>0</b>, <b>0</b>, Breite <b>24</b>, Höhe <b>10</b>. Klicke auf <b>Skizze fertig stellen</b>.',
@@ -161,7 +161,7 @@ export default {
   'lesson.pocket.outro': 'In Fusion kannst du den Pfeil auch nach unten ins Teil ziehen. Dann wechselt er von selbst zu Ausschneiden.',
 
   'lesson.change.title': 'Überleg es dir anders',
-  'lesson.change.intro': 'Das ist die Superkraft von Fusion und SolidWorks. Jedes Feature merkt sich seine Zahlen. Ändere ein frühes Feature, und alles danach passt sich an.',
+  'lesson.change.intro': 'Das ist die Superkraft von Fusion und SolidWorks. Jedes <dfn data-term="feature">Feature</dfn> merkt sich seine Zahlen. Ändere ein frühes Feature, und alles danach passt sich an.',
   'lesson.change.steps': [
     'Klicke in der Zeitachse unten auf <b>Skizze1</b>.',
     'Ändere die Breite von 40 auf <b>60</b>. Klicke auf <b>Skizze fertig stellen</b>.',
@@ -181,7 +181,7 @@ export default {
   'challenge.cup.brief': ['Kasten 60 × 40, 30 hoch, mittig auf dem Ursprung', 'Runde die 4 senkrechten Kanten ab: Radius 5', 'Höhle ihn von oben aus: eine Tasche 50 × 30, 25 tief'],
 
   'course.basics.title': 'Die Grundlagen',
-  'course.basics.intro': 'Skizze, Extrusion, dann Features obendrauf. So entsteht jedes Teil in Fusion.',
+  'course.basics.intro': 'Skizze, Extrusion, dann <dfn data-term="feature">Features</dfn> obendrauf. So entsteht jedes Teil in Fusion.',
   'course.robot.title': 'Bau deinen Roboterarm',
   'course.robot.intro': 'Konstruiere die Teile eines kleinen Roboterarms, bau sie dann mit Gelenken zusammen und bring ihn in Bewegung. Drucke die Teile aus und verbinde sie mit M3-Schrauben.',
   'course.elf.title': 'Elfenmöbel',
@@ -195,7 +195,7 @@ export default {
     'Zieh die beiden Laschen mit <b>Extrusion</b> <b>24</b> mm nach oben.',
     'Klicke auf <b>Bohrung</b> und dann auf die <b>Außenfläche</b> einer Lasche. Auf einer Seitenfläche ist Y die Höhe. Stelle X <b>0</b>, Y <b>24</b>, Durchmesser <b>3,5</b>, Tiefe <b>0</b> ein. Das Loch geht durch beide Laschen!',
   ],
-  'lesson.robot-base.outro': 'Das Loch hat 3,5 mm, etwas mehr als die 3-mm-Schraube, damit sich der Arm drehen kann. Ingenieure nennen diesen Abstand „Spiel“.',
+  'lesson.robot-base.outro': 'Das Loch hat 3,5 mm, etwas mehr als die 3-mm-Schraube, damit sich der Arm drehen kann. Ingenieure nennen diesen Abstand „<dfn data-term="clearance">Spiel</dfn>“.',
   'lesson.robot-link.title': 'Armglied',
   'lesson.robot-link.intro': 'Ein Armglied ist ein Stab mit runden Enden und einem Loch an jedem Ende. Formen, die sich in einer Skizze überlappen, werden eins: Ein Rechteck und zwei Kreise ergeben die runden Enden.',
   'lesson.robot-link.steps': [
@@ -213,7 +213,7 @@ export default {
     'Setze eine <b>Bohrung</b> auf die obere Fläche für die Drehachsen-Schraube: X <b>14</b>, Y <b>3</b>, Durchmesser <b>3,5</b>, Tiefe <b>0</b>.',
     'Innenecken sind die Stellen, an denen Teile brechen. Setze eine <b>Abrundung</b> mit Radius <b>2</b> in die Innenecke des Hakens.',
   ],
-  'lesson.robot-finger.outro': 'Drucke zwei Finger, spiegle einen davon in deinem Slicer, und schon hast du einen Greifer. In Fusion funktioniert das Werkzeug Linie genauso, und du kannst jede Länge eintippen.',
+  'lesson.robot-finger.outro': 'Drucke zwei Finger, spiegle einen davon in deinem <dfn data-term="slicer">Slicer</dfn>, und schon hast du einen Greifer. In Fusion funktioniert das Werkzeug Linie genauso, und du kannst jede Länge eintippen.',
   'challenge.robot-longlink.title': 'Langes Armglied',
   'challenge.robot-longlink.brief': [
     'Ein Stab, 12 breit und 6 dick, mit runden Enden, mittig auf dem Ursprung',
@@ -229,7 +229,7 @@ export default {
     'Mach die Tischplatte mit <b>Extrusion</b> <b>4</b> mm dick, mit <b>Verbinden</b>.',
     'Runde die Ecken der Tischplatte ab: <b>Abrundung</b> an ihren 4 senkrechten Kanten mit Radius <b>5</b>.',
   ],
-  'lesson.elf-table.outro': 'Zum 3D-Drucken drehst du den Tisch im Slicer auf den Kopf: Die Platte liegt flach auf dem Druckbett, die Beine zeigen nach oben. Ganz ohne Stützen!',
+  'lesson.elf-table.outro': 'Zum 3D-Drucken drehst du den Tisch im <dfn data-term="slicer">Slicer</dfn> auf den Kopf: Die Platte liegt flach auf dem Druckbett, die Beine zeigen nach oben. Ganz ohne Stützen!',
   'lesson.elf-chair.title': 'Elfenstuhl',
   'lesson.elf-chair.intro': 'Ein Stuhl ist ein kleiner Tisch mit Lehne. Diesmal sind die Beine eckig.',
   'lesson.elf-chair.steps': [
@@ -238,7 +238,7 @@ export default {
     'Skizziere <b>oben auf der Sitzfläche</b> die Lehne: Mitte <b>0</b>, <b>13,5</b>, Breite <b>30</b>, Höhe <b>3</b>. Fertig stellen und mit <b>Extrusion</b> <b>30</b> mm hochziehen.',
     'Runde die Lehne oben ab: <b>Abrundung</b> an ihren 2 kurzen oberen Kanten mit Radius <b>5</b>.',
   ],
-  'lesson.elf-chair.outro': '4 Beine einzeln zu zeichnen dauert. In Fusion kopiert eine <b>Rechteckige Anordnung</b> ein Bein für dich. Halte danach Ausschau!',
+  'lesson.elf-chair.outro': '4 Beine einzeln zu zeichnen dauert. In Fusion kopiert eine <dfn data-term="pattern">Rechteckige Anordnung</dfn> ein Bein für dich. Halte danach Ausschau!',
   'lesson.elf-shelf.title': 'Elfen-Bücherregal',
   'lesson.elf-shelf.intro': 'Du kannst auch auf der Seite eines Teils zeichnen. Hier schneidest du 3 Fächer in die Vorderseite eines hohen Kastens.',
   'lesson.elf-shelf.steps': [
@@ -277,7 +277,7 @@ export default {
   'err.jointPlaced': 'Beide Teile sind schon platziert. Verbinde ein Teil, das noch lose ist.',
   'err.jointLoose': 'Noch keines der beiden Teile hängt am Sockel',
   'lesson.robot-joint.title': 'Dein erstes Gelenk',
-  'lesson.robot-joint.intro': 'Maschinen bestehen aus vielen Teilen. In einer <b>Baugruppe</b> ist jedes Teil eine <b>Komponente</b>, und <b>Gelenke</b> sagen, wie Komponenten verbunden sind und sich bewegen. (In SolidWorks heißen sie <b>Verknüpfungen</b>.) Der Sockel ist <b>fixiert</b> 📌: Er bewegt sich nie, und die anderen Teile hängen an ihm.',
+  'lesson.robot-joint.intro': 'Maschinen bestehen aus vielen Teilen. In einer <dfn data-term="assembly">Baugruppe</dfn> ist jedes Teil eine <dfn data-term="component">Komponente</dfn>, und <dfn data-term="joint">Gelenke</dfn> sagen, wie Komponenten verbunden sind und sich bewegen. (In SolidWorks heißen sie <dfn data-term="mate">Verknüpfungen</dfn>.) Der Sockel ist <dfn data-term="grounded">fixiert</dfn> 📌: Er bewegt sich nie, und die anderen Teile hängen an ihm.',
   'lesson.robot-joint.steps': [
     'Klicke auf <b>Gelenk</b> (unter ZUSAMMENFÜGEN).',
     'Klicke zuerst auf das Teil, das sich <b>bewegt</b>: einen <b>Lochrand</b> an einem Ende des orangen Armglieds. Lochränder leuchten auf, wenn du darauf zeigst.',
@@ -295,4 +295,35 @@ export default {
     'Klicke auf <b>Gelenke antreiben</b> und bewege die Regler. Schaffst du es, dass der Arm ganz nach oben reicht?',
   ],
   'lesson.robot-assembly.outro': 'So werden echte Roboter konstruiert: erst die Teile, dann die Baugruppe, und die Bewegung wird am Bildschirm getestet, bevor irgendetwas gedruckt wird.',
+
+  'term.sketch.name': 'Skizze',
+  'term.sketch.def': 'Eine flache Zeichnung auf einer Ebene oder einer ebenen Fläche. Jede 3D-Form in Fusion beginnt als Skizze.',
+  'term.extrude.name': 'Extrusion',
+  'term.extrude.def': 'Zieht eine flache Skizze um einen Abstand, den du wählst, in 3D hoch, wie Knete, die man durch ein geformtes Loch drückt.',
+  'term.fillet.name': 'Abrundung',
+  'term.fillet.def': 'Macht eine scharfe Kante rund. Abrundungen machen Teile angenehmer in der Hand und an Innenecken stabiler.',
+  'term.hole.name': 'Bohrung',
+  'term.hole.def': 'Bohrt ein rundes Loch in eine ebene Fläche. Du wählst, wo es hinkommt, wie breit und wie tief es ist.',
+  'term.cut.name': 'Ausschneiden',
+  'term.cut.def': 'Eine Extrusion, die Material wegnimmt, statt welches hinzuzufügen.',
+  'term.feature.name': 'Feature',
+  'term.feature.def': 'Ein Schritt deiner Konstruktion: eine Skizze, eine Extrusion, eine Abrundung, eine Bohrung… Jedes steht in der Zeitachse und merkt sich seine Zahlen.',
+  'term.timeline.name': 'Zeitachse',
+  'term.timeline.def': 'Die Reihe der Features unten am Bildschirm, in der Reihenfolge, in der du sie gemacht hast. Klicke auf eines, um es zu ändern.',
+  'term.assembly.name': 'Baugruppe',
+  'term.assembly.def': 'Mehrere Teile zusammengebaut, wie eine echte Maschine.',
+  'term.component.name': 'Komponente',
+  'term.component.def': 'Ein Teil in einer Baugruppe.',
+  'term.joint.name': 'Gelenk',
+  'term.joint.def': 'Sagt, wie zwei Komponenten verbunden sind und wie sie sich bewegen können.',
+  'term.mate.name': 'Verknüpfung',
+  'term.mate.def': 'Das SolidWorks-Wort für ein Gelenk.',
+  'term.grounded.name': 'Fixiert',
+  'term.grounded.def': 'Eine Komponente, die sich nie bewegt. Die anderen Teile hängen an ihr.',
+  'term.clearance.name': 'Spiel',
+  'term.clearance.def': 'Ein kleiner Abstand, den man absichtlich lässt, damit Teile zusammenpassen oder sich bewegen können.',
+  'term.pattern.name': 'Anordnung',
+  'term.pattern.def': 'Kopiert ein Feature viele Male in Reihen und Spalten (oder im Kreis), damit du es nur einmal zeichnen musst.',
+  'term.slicer.name': 'Slicer',
+  'term.slicer.def': 'Das Programm, das deine STL-Datei in Anweisungen für den 3D-Drucker umwandelt.',
 };

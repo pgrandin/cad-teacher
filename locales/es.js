@@ -113,7 +113,7 @@ export default {
   'learn.restart': 'Empezar de nuevo',
 
   'lesson.block.title': 'Tu primer bloque',
-  'lesson.block.intro': 'Las piezas de CAD de verdad empiezan como un dibujo plano llamado <b>boceto</b>. Luego lo estiras en 3D. Eso se llama una <b>extrusión</b>.',
+  'lesson.block.intro': 'Las piezas de CAD de verdad empiezan como un dibujo plano llamado <dfn data-term="sketch">boceto</dfn>. Luego lo estiras en 3D. Eso se llama una <dfn data-term="extrude">extrusión</dfn>.',
   'lesson.block.steps': [
     'Haz clic en <b>Crear boceto</b> y luego en el plano <b>XY</b>, el que está en el suelo.',
     'Elige <b>Rectángulo</b>. Haz clic en una esquina de la cuadrícula y luego en la esquina opuesta.',
@@ -124,16 +124,16 @@ export default {
   'lesson.block.outro': 'En Fusion 360, Crear boceto y Extruir son los primeros botones de SÓLIDO → CREAR. Misma idea, mismos nombres.',
 
   'lesson.fillet.title': 'Redondea las esquinas',
-  'lesson.fillet.intro': 'Un <b>empalme</b> redondea una arista viva. Un empalme también es una operación: se coloca encima de la extrusión.',
+  'lesson.fillet.intro': 'Un <dfn data-term="fillet">empalme</dfn> redondea una arista viva. Un empalme también es una operación: se coloca encima de la extrusión.',
   'lesson.fillet.steps': [
     'Haz clic en <b>Empalme</b>.',
     'Haz clic en las <b>4 aristas verticales</b> de las esquinas. Las aristas elegidas se ponen azules. Una se esconde detrás: arrastra con el botón izquierdo para girar la pieza.',
     'Pon el Radio en <b>5</b> y haz clic en <b>Aceptar</b>.',
   ],
-  'lesson.fillet.outro': 'Mira la línea de tiempo abajo: Boceto → Extrusión → Empalme. Fusion guarda la misma lista, en el mismo orden.',
+  'lesson.fillet.outro': 'Mira la <dfn data-term="timeline">línea de tiempo</dfn> abajo: Boceto → Extrusión → Empalme. Fusion guarda la misma lista, en el mismo orden.',
 
   'lesson.hole.title': 'Haz un agujero',
-  'lesson.hole.intro': 'La herramienta <b>Agujero</b> taladra una cara. Eliges la cara y luego dices dónde va el agujero y qué tamaño tiene.',
+  'lesson.hole.intro': 'La herramienta <dfn data-term="hole">Agujero</dfn> taladra una cara. Eliges la cara y luego dices dónde va el agujero y qué tamaño tiene.',
   'lesson.hole.steps': [
     'Haz clic en <b>Agujero</b>.',
     'Haz clic en la <b>cara de arriba</b> del bloque.',
@@ -152,7 +152,7 @@ export default {
   'lesson.stack.outro': '«Unir» pega la forma nueva al cuerpo. Fusion elige Unir solo cuando la forma nueva toca el cuerpo.',
 
   'lesson.pocket.title': 'Haz un hueco',
-  'lesson.pocket.intro': 'La extrusión también puede quitar material: es la operación <b>Cortar</b>. Una distancia negativa se mete dentro de la pieza.',
+  'lesson.pocket.intro': 'La extrusión también puede quitar material: es la operación <dfn data-term="cut">Cortar</dfn>. Una distancia negativa se mete dentro de la pieza.',
   'lesson.pocket.steps': [
     'Crea un boceto en la <b>cara de arriba</b> del bloque.',
     'Dibuja un rectángulo con Centro <b>0</b>, <b>0</b>, Ancho <b>24</b>, Alto <b>10</b>. Haz clic en <b>Terminar boceto</b>.',
@@ -161,7 +161,7 @@ export default {
   'lesson.pocket.outro': 'En Fusion también puedes arrastrar la flecha hacia dentro de la pieza. Cambia a Cortar sola.',
 
   'lesson.change.title': 'Cambia de idea',
-  'lesson.change.intro': 'Este es el superpoder de Fusion y SolidWorks. Cada operación recuerda sus números. Cambia una operación del principio y todo lo que viene después se actualiza.',
+  'lesson.change.intro': 'Este es el superpoder de Fusion y SolidWorks. Cada <dfn data-term="feature">operación</dfn> recuerda sus números. Cambia una operación del principio y todo lo que viene después se actualiza.',
   'lesson.change.steps': [
     'En la línea de tiempo de abajo, haz clic en <b>Boceto1</b>.',
     'Cambia el Ancho de 40 a <b>60</b>. Haz clic en <b>Terminar boceto</b>.',
@@ -181,7 +181,7 @@ export default {
   'challenge.cup.brief': ['Caja de 60 × 40, 30 de alto, centrada en el origen', 'Redondea las 4 aristas verticales: radio 5', 'Vacíala desde arriba: un hueco de 50 × 30, 25 de profundidad'],
 
   'course.basics.title': 'Lo básico',
-  'course.basics.intro': 'Boceto, extrusión y luego operaciones encima. Todas las piezas de Fusion se hacen así.',
+  'course.basics.intro': 'Boceto, extrusión y luego <dfn data-term="feature">operaciones</dfn> encima. Todas las piezas de Fusion se hacen así.',
   'course.robot.title': 'Diseña tu brazo robot',
   'course.robot.intro': 'Diseña las piezas de un pequeño brazo robot, luego ensámblalas con uniones y haz que se mueva. Imprime las piezas y únelas con tornillos M3.',
   'course.elf.title': 'Muebles de elfo',
@@ -195,7 +195,7 @@ export default {
     'Usa <b>Extruir</b> para subir las dos pestañas <b>24</b> mm.',
     'Haz clic en <b>Agujero</b> y luego en la <b>cara de fuera</b> de una pestaña. En una cara lateral, Y es la altura. Pon X <b>0</b>, Y <b>24</b>, Diámetro <b>3,5</b>, Profundidad <b>0</b>. ¡El agujero atraviesa las dos pestañas!',
   ],
-  'lesson.robot-base.outro': 'El agujero mide 3,5 mm, un poco más que el tornillo de 3 mm, para que el brazo pueda girar. Los ingenieros llaman a ese hueco "holgura".',
+  'lesson.robot-base.outro': 'El agujero mide 3,5 mm, un poco más que el tornillo de 3 mm, para que el brazo pueda girar. Los ingenieros llaman a ese hueco <dfn data-term="clearance">holgura</dfn>.',
   'lesson.robot-link.title': 'Eslabón del brazo',
   'lesson.robot-link.intro': 'Un eslabón es una barra con extremos redondos y un agujero en cada extremo. Las formas que se tocan en un boceto se juntan, así que un rectángulo y dos círculos hacen los extremos redondos.',
   'lesson.robot-link.steps': [
@@ -213,7 +213,7 @@ export default {
     'Añade un <b>Agujero</b> en la cara de arriba para el tornillo del eje: X <b>14</b>, Y <b>3</b>, Diámetro <b>3,5</b>, Profundidad <b>0</b>.',
     'Las esquinas de dentro son donde se rompen las piezas. Añade un <b>Empalme</b> de Radio <b>2</b> en la esquina de dentro del gancho.',
   ],
-  'lesson.robot-finger.outro': 'Imprime dos dedos, pon uno en espejo en tu laminador y tendrás una pinza. En Fusion, la herramienta Línea funciona igual, y puedes escribir la longitud de cada línea.',
+  'lesson.robot-finger.outro': 'Imprime dos dedos, pon uno en espejo en tu <dfn data-term="slicer">laminador</dfn> y tendrás una pinza. En Fusion, la herramienta Línea funciona igual, y puedes escribir la longitud de cada línea.',
   'challenge.robot-longlink.title': 'Eslabón largo',
   'challenge.robot-longlink.brief': [
     'Una barra de 12 de ancho y 6 de grosor, con extremos redondos, centrada en el origen',
@@ -229,7 +229,7 @@ export default {
     'Usa <b>Extruir</b> con <b>4</b> mm y <b>Unir</b> para hacer el tablero.',
     'Redondea las esquinas del tablero: haz un <b>Empalme</b> en sus 4 aristas verticales con Radio <b>5</b>.',
   ],
-  'lesson.elf-table.outro': 'Para imprimirla en 3D, dale la vuelta en tu laminador: el tablero plano sobre la cama y las patas hacia arriba. ¡Sin soportes!',
+  'lesson.elf-table.outro': 'Para imprimirla en 3D, dale la vuelta en tu <dfn data-term="slicer">laminador</dfn>: el tablero plano sobre la cama y las patas hacia arriba. ¡Sin soportes!',
   'lesson.elf-chair.title': 'Silla de elfo',
   'lesson.elf-chair.intro': 'Una silla es una mesa pequeña con respaldo. Esta vez las patas son cuadradas.',
   'lesson.elf-chair.steps': [
@@ -238,7 +238,7 @@ export default {
     'Haz un boceto <b>encima del asiento</b> y dibuja el respaldo: Centro <b>0</b>, <b>13,5</b>, Ancho <b>30</b>, Alto <b>3</b>. Termina y usa <b>Extruir</b> con <b>30</b> mm.',
     'Redondea la parte de arriba del respaldo: haz un <b>Empalme</b> en sus 2 aristas cortas de arriba con Radio <b>5</b>.',
   ],
-  'lesson.elf-chair.outro': 'Dibujar 4 patas una a una es lento. En Fusion, un <b>Patrón rectangular</b> copia una pata por ti. ¡Búscalo cuando llegues!',
+  'lesson.elf-chair.outro': 'Dibujar 4 patas una a una es lento. En Fusion, un <dfn data-term="pattern">Patrón rectangular</dfn> copia una pata por ti. ¡Búscalo cuando llegues!',
   'lesson.elf-shelf.title': 'Estantería de elfo',
   'lesson.elf-shelf.intro': 'También puedes dibujar en un lado de la pieza. Aquí cortas 3 huecos en el frente de una caja alta.',
   'lesson.elf-shelf.steps': [
@@ -277,7 +277,7 @@ export default {
   'err.jointPlaced': 'Las dos piezas ya están colocadas. Une una pieza que todavía esté suelta.',
   'err.jointLoose': 'Ninguna de las dos piezas está unida a la base todavía',
   'lesson.robot-joint.title': 'Tu primera unión',
-  'lesson.robot-joint.intro': 'Las máquinas están hechas de muchas piezas. En un <b>ensamblaje</b>, cada pieza es un <b>componente</b>, y las <b>uniones</b> dicen cómo se conectan y se mueven. (En SolidWorks se llaman <b>relaciones de posición</b>.) La base está <b>fija</b> 📌: nunca se mueve, y las demás piezas se unen a ella.',
+  'lesson.robot-joint.intro': 'Las máquinas están hechas de muchas piezas. En un <dfn data-term="assembly">ensamblaje</dfn>, cada pieza es un <dfn data-term="component">componente</dfn>, y las <dfn data-term="joint">uniones</dfn> dicen cómo se conectan y se mueven. (En SolidWorks se llaman <dfn data-term="mate">relaciones de posición</dfn>.) La base está <dfn data-term="grounded">fija</dfn> 📌: nunca se mueve, y las demás piezas se unen a ella.',
   'lesson.robot-joint.steps': [
     'Haz clic en <b>Unión</b> (en ENSAMBLAR).',
     'Primero haz clic en la pieza que se <b>mueve</b>: el <b>borde de un agujero</b> en un extremo del eslabón naranja. Los bordes de los agujeros se iluminan al pasar por encima.',
@@ -295,4 +295,35 @@ export default {
     'Haz clic en <b>Accionar uniones</b> y mueve los controles. ¿Puedes hacer que el brazo llegue bien alto?',
   ],
   'lesson.robot-assembly.outro': 'Así se diseñan los robots de verdad: primero las piezas, luego el ensamblaje, y se prueba el movimiento en pantalla antes de imprimir nada.',
+
+  'term.sketch.name': 'Boceto',
+  'term.sketch.def': 'Un dibujo plano sobre un plano o una cara plana. Toda forma 3D en Fusion empieza con un boceto.',
+  'term.extrude.name': 'Extrusión',
+  'term.extrude.def': 'Estira un boceto plano en 3D la distancia que elijas, como plastilina que pasa por un agujero con forma.',
+  'term.fillet.name': 'Empalme',
+  'term.fillet.def': 'Redondea una arista viva. Los empalmes hacen las piezas más agradables de agarrar y más fuertes en las esquinas de dentro.',
+  'term.hole.name': 'Agujero',
+  'term.hole.def': 'Hace un agujero redondo en una cara plana. Tú eliges dónde va, qué ancho tiene y qué profundidad.',
+  'term.cut.name': 'Cortar',
+  'term.cut.def': 'Una extrusión que quita material en vez de añadirlo.',
+  'term.feature.name': 'Operación',
+  'term.feature.def': 'Un paso de tu diseño: un boceto, una extrusión, un empalme, un agujero… Cada una está en la línea de tiempo y recuerda sus números.',
+  'term.timeline.name': 'Línea de tiempo',
+  'term.timeline.def': 'La fila de operaciones abajo de la pantalla, en el orden en que las hiciste. Haz clic en una para cambiarla.',
+  'term.assembly.name': 'Ensamblaje',
+  'term.assembly.def': 'Varias piezas juntas, como una máquina de verdad.',
+  'term.component.name': 'Componente',
+  'term.component.def': 'Una pieza dentro de un ensamblaje.',
+  'term.joint.name': 'Unión',
+  'term.joint.def': 'Dice cómo se conectan dos componentes y cómo se pueden mover.',
+  'term.mate.name': 'Relación de posición',
+  'term.mate.def': 'La palabra de SolidWorks para una unión.',
+  'term.grounded.name': 'Fijo',
+  'term.grounded.def': 'Un componente que nunca se mueve. Las demás piezas se unen a él.',
+  'term.clearance.name': 'Holgura',
+  'term.clearance.def': 'Un pequeño hueco que se deja a propósito, para que las piezas encajen o puedan moverse.',
+  'term.pattern.name': 'Patrón',
+  'term.pattern.def': 'Copia una operación muchas veces en filas y columnas (o en círculo), para dibujarla una sola vez.',
+  'term.slicer.name': 'Laminador',
+  'term.slicer.def': 'El programa que convierte tu archivo STL en instrucciones para la impresora 3D.',
 };

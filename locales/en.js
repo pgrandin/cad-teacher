@@ -115,7 +115,7 @@ export default {
   'learn.restart': 'Start over',
 
   'lesson.block.title': 'Your first block',
-  'lesson.block.intro': 'Real CAD parts start as a flat drawing called a <b>sketch</b>. Then you pull it up into 3D. That pull is called an <b>extrude</b>.',
+  'lesson.block.intro': 'Real CAD parts start as a flat drawing called a <dfn data-term="sketch">sketch</dfn>. Then you pull it up into 3D. That pull is called an <dfn data-term="extrude">extrude</dfn>.',
   'lesson.block.steps': [
     'Click <b>Create Sketch</b>, then click the flat <b>XY</b> plane on the floor.',
     'Pick <b>Rectangle</b>. Click one corner on the grid, then the opposite corner.',
@@ -126,16 +126,16 @@ export default {
   'lesson.block.outro': 'In Fusion 360, Create Sketch and Extrude are the first buttons under SOLID → CREATE. Same idea, same names.',
 
   'lesson.fillet.title': 'Round the corners',
-  'lesson.fillet.intro': 'A <b>fillet</b> rounds a sharp edge. A fillet is a feature too: it sits on top of the extrude.',
+  'lesson.fillet.intro': 'A <dfn data-term="fillet">fillet</dfn> rounds a sharp edge. A fillet is a feature too: it sits on top of the extrude.',
   'lesson.fillet.steps': [
     'Click <b>Fillet</b>.',
     'Click the <b>4 edges that stand up</b> at the corners. Picked edges turn blue. One hides at the back: left-drag to spin the part around.',
     'Set Radius to <b>5</b> and click <b>OK</b>.',
   ],
-  'lesson.fillet.outro': 'Look at the timeline at the bottom: Sketch → Extrude → Fillet. Fusion keeps the same list, in the same order.',
+  'lesson.fillet.outro': 'Look at the <dfn data-term="timeline">timeline</dfn> at the bottom: Sketch → Extrude → Fillet. Fusion keeps the same list, in the same order.',
 
   'lesson.hole.title': 'Drill a hole',
-  'lesson.hole.intro': 'The <b>Hole</b> tool drills into a face. You pick the face, then say where the hole goes and how big it is.',
+  'lesson.hole.intro': 'The <dfn data-term="hole">Hole</dfn> tool drills into a face. You pick the face, then say where the hole goes and how big it is.',
   'lesson.hole.steps': [
     'Click <b>Hole</b>.',
     'Click the <b>top face</b> of the block.',
@@ -154,7 +154,7 @@ export default {
   'lesson.stack.outro': '"Join" glues the new shape onto the body. Fusion picks Join for you when the new shape touches the body.',
 
   'lesson.pocket.title': 'Cut a pocket',
-  'lesson.pocket.intro': 'Extrude can also take material away. That is a <b>Cut</b>. A negative distance pushes down into the part.',
+  'lesson.pocket.intro': 'Extrude can also take material away. That is a <dfn data-term="cut">Cut</dfn>. A negative distance pushes down into the part.',
   'lesson.pocket.steps': [
     'Create a sketch on the <b>top face</b> of the block.',
     'Draw a rectangle with Center <b>0</b>, <b>0</b>, Width <b>24</b>, Height <b>10</b>. Click <b>Finish Sketch</b>.',
@@ -163,7 +163,7 @@ export default {
   'lesson.pocket.outro': 'In Fusion you can also drag the arrow down into the part. It switches to Cut by itself.',
 
   'lesson.change.title': 'Change your mind',
-  'lesson.change.intro': 'This is the superpower of Fusion and SolidWorks. Every feature remembers its numbers. Change an early feature and everything after it updates.',
+  'lesson.change.intro': 'This is the superpower of Fusion and SolidWorks. Every <dfn data-term="feature">feature</dfn> remembers its numbers. Change an early feature and everything after it updates.',
   'lesson.change.steps': [
     'In the timeline at the bottom, click <b>Sketch1</b>.',
     'Change Width from 40 to <b>60</b>. Click <b>Finish Sketch</b>.',
@@ -183,7 +183,7 @@ export default {
   'challenge.cup.brief': ['Box 60 × 40, 30 tall, centered on the origin', 'Round the 4 standing edges: radius 5', 'Hollow it from the top: a 50 × 30 pocket, 25 deep'],
 
   'course.basics.title': 'The basics',
-  'course.basics.intro': 'Sketch, extrude, then add features on top. Every part in Fusion is made this way.',
+  'course.basics.intro': 'Sketch, extrude, then add <dfn data-term="feature">features</dfn> on top. Every part in Fusion is made this way.',
   'course.robot.title': 'Design your robot arm',
   'course.robot.intro': 'Design the parts of a small robot arm, then assemble them with joints and make it move. Print the parts and join them with M3 screws.',
   'course.elf.title': 'Elf furniture',
@@ -197,7 +197,7 @@ export default {
     '<b>Extrude</b> the two tabs <b>24</b> mm up.',
     'Click <b>Hole</b>, then the <b>outside face</b> of a tab. On a side face, Y is the height. Set X <b>0</b>, Y <b>24</b>, Diameter <b>3.5</b>, Depth <b>0</b>. The hole goes through both tabs!',
   ],
-  'lesson.robot-base.outro': 'The hole is 3.5 mm, a little bigger than the 3 mm screw, so the arm can turn. Engineers call that gap "clearance".',
+  'lesson.robot-base.outro': 'The hole is 3.5 mm, a little bigger than the 3 mm screw, so the arm can turn. Engineers call that gap <dfn data-term="clearance">clearance</dfn>.',
   'lesson.robot-link.title': 'Arm link',
   'lesson.robot-link.intro': 'An arm link is a bar with round ends and a hole at each end. Shapes that overlap in a sketch join together, so a rectangle and two circles make the round ends.',
   'lesson.robot-link.steps': [
@@ -215,7 +215,7 @@ export default {
     'Add a <b>Hole</b> on the top face for the pivot screw: X <b>14</b>, Y <b>3</b>, Diameter <b>3.5</b>, Depth <b>0</b>.',
     'Inside corners are where parts break. Add a <b>Fillet</b> with Radius <b>2</b> on the inside corner of the hook.',
   ],
-  'lesson.robot-finger.outro': 'Print two fingers, mirror one in your slicer, and you have a gripper. In Fusion, the Line tool works the same way, and you can type each length.',
+  'lesson.robot-finger.outro': 'Print two fingers, mirror one in your <dfn data-term="slicer">slicer</dfn>, and you have a gripper. In Fusion, the Line tool works the same way, and you can type each length.',
   'challenge.robot-longlink.title': 'Long arm link',
   'challenge.robot-longlink.brief': [
     'A bar 12 wide and 6 thick, with round ends, centered on the origin',
@@ -231,7 +231,7 @@ export default {
     '<b>Extrude</b> the table top <b>4</b> mm with <b>Join</b>.',
     'Round the corners of the table top: <b>Fillet</b> its 4 standing edges with Radius <b>5</b>.',
   ],
-  'lesson.elf-table.outro': 'To 3D print it, turn it upside down in your slicer. The top lies flat on the bed and the legs point up, so no supports are needed.',
+  'lesson.elf-table.outro': 'To 3D print it, turn it upside down in your <dfn data-term="slicer">slicer</dfn>. The top lies flat on the bed and the legs point up, so no supports are needed.',
   'lesson.elf-chair.title': 'Elf chair',
   'lesson.elf-chair.intro': 'A chair is a small table with a back. This time the legs are square.',
   'lesson.elf-chair.steps': [
@@ -240,7 +240,7 @@ export default {
     'Sketch on the <b>top of the seat</b> and draw the back: Center <b>0</b>, <b>13.5</b>, Width <b>30</b>, Height <b>3</b>. Finish and <b>Extrude</b> it <b>30</b> mm.',
     'Round the top of the back: <b>Fillet</b> its 2 short top edges with Radius <b>5</b>.',
   ],
-  'lesson.elf-chair.outro': 'Drawing 4 legs one by one is slow. In Fusion, a <b>Rectangular Pattern</b> copies one leg for you. Look for it when you get there!',
+  'lesson.elf-chair.outro': 'Drawing 4 legs one by one is slow. In Fusion, a <dfn data-term="pattern">Rectangular Pattern</dfn> copies one leg for you. Look for it when you get there!',
   'lesson.elf-shelf.title': 'Elf bookshelf',
   'lesson.elf-shelf.intro': 'You can sketch on the side of a part too. Here you cut 3 shelf spaces into the front of a tall box.',
   'lesson.elf-shelf.steps': [
@@ -279,7 +279,7 @@ export default {
   'err.jointPlaced': 'Both parts are already placed. Attach a part that is still loose.',
   'err.jointLoose': 'Neither part is attached to the base yet',
   'lesson.robot-joint.title': 'Your first joint',
-  'lesson.robot-joint.intro': 'Machines are made of many parts. In an <b>assembly</b>, each part is a <b>component</b>, and <b>joints</b> say how components connect and move. (SolidWorks calls them <b>mates</b>.) The base is <b>grounded</b> 📌: it never moves, and the other parts attach to it.',
+  'lesson.robot-joint.intro': 'Machines are made of many parts. In an <dfn data-term="assembly">assembly</dfn>, each part is a <dfn data-term="component">component</dfn>, and <dfn data-term="joint">joints</dfn> say how components connect and move. (SolidWorks calls them <dfn data-term="mate">mates</dfn>.) The base is <dfn data-term="grounded">grounded</dfn> 📌: it never moves, and the other parts attach to it.',
   'lesson.robot-joint.steps': [
     'Click <b>Joint</b> (in ASSEMBLE).',
     'First click the part that <b>moves</b>: a <b>hole edge</b> at one end of the orange link. Hole edges light up when you point at them.',
@@ -297,4 +297,35 @@ export default {
     'Click <b>Drive Joints</b> and move the sliders. Can you make the arm reach up high?',
   ],
   'lesson.robot-assembly.outro': 'This is how real robots are designed: parts first, then an assembly, then you test the motion on screen before you print anything.',
+
+  'term.sketch.name': 'Sketch',
+  'term.sketch.def': 'A flat drawing on a plane or on a flat face. Every 3D shape in Fusion starts as a sketch.',
+  'term.extrude.name': 'Extrude',
+  'term.extrude.def': 'Pulls a flat sketch into 3D by a distance you choose, like pushing play-dough through a shaped hole.',
+  'term.fillet.name': 'Fillet',
+  'term.fillet.def': 'Rounds a sharp edge. Fillets make parts nicer to hold and stronger at inside corners.',
+  'term.hole.name': 'Hole',
+  'term.hole.def': 'Drills a round hole into a flat face. You choose where it goes, how wide it is and how deep.',
+  'term.cut.name': 'Cut',
+  'term.cut.def': 'An extrude that takes material away instead of adding it.',
+  'term.feature.name': 'Feature',
+  'term.feature.def': 'One step of your design: a sketch, an extrude, a fillet, a hole… Each one sits in the timeline and remembers its numbers.',
+  'term.timeline.name': 'Timeline',
+  'term.timeline.def': 'The row of features at the bottom of the screen, in the order you made them. Click one to change it.',
+  'term.assembly.name': 'Assembly',
+  'term.assembly.def': 'Several parts put together, like a real machine.',
+  'term.component.name': 'Component',
+  'term.component.def': 'One part inside an assembly.',
+  'term.joint.name': 'Joint',
+  'term.joint.def': 'Tells how two components are connected and how they can move.',
+  'term.mate.name': 'Mate',
+  'term.mate.def': 'The SolidWorks word for a joint.',
+  'term.grounded.name': 'Grounded',
+  'term.grounded.def': 'A component that never moves. The other parts attach to it.',
+  'term.clearance.name': 'Clearance',
+  'term.clearance.def': 'A small gap left on purpose, so parts fit together or can move.',
+  'term.pattern.name': 'Pattern',
+  'term.pattern.def': 'Copies a feature many times in rows and columns (or around a circle), so you only draw it once.',
+  'term.slicer.name': 'Slicer',
+  'term.slicer.def': 'The program that turns your STL file into instructions for the 3D printer.',
 };
