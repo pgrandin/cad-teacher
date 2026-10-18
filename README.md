@@ -7,7 +7,7 @@ features (fillet, chamfer, hole), with a timeline you can go back and edit. Thre
 guided lessons and challenges checked against a goal shape: the basics, "Design your robot arm"
 (printable parts, then an assembly with joints you can drive, like Fusion's Joint and Drive Joints),
 and "Elf furniture" (dollhouse table, chair, bookshelf, bed).
-Parts export to STL.
+Work is saved in the browser per lesson. Parts export to STL (3D printing) and STEP (opens in Fusion).
 
 Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
 [replicad](https://replicad.xyz), WebAssembly). The view is three.js. Both are vendored in `vendor/`.

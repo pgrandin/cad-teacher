@@ -363,12 +363,14 @@ function editFeature(i) {
   else startCommand(f.type, i, f);
 }
 
-function exportSTL() {
+// STL is for the 3D printer; STEP opens in Fusion (File → Open) to keep designing there.
+function exportFile(kind) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(cad.stlOf(built.body));
-  a.download = (lesson?.def.id || 'part') + '.stl';
+  a.href = URL.createObjectURL(kind === 'step' ? cad.stepOf(built.body) : cad.stlOf(built.body));
+  a.download = `${lesson?.def.id || 'part'}.${kind}`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  if (kind === 'step') flash(t('hint.stepSaved'), 8000);
 }
 
 function act(id, fromKey = false) {
@@ -381,7 +383,7 @@ function act(id, fromKey = false) {
     return refresh();
   }
   if (id === 'undo') return undoLast();
-  if (id === 'stl') return exportSTL();
+  if (id === 'stl' || id === 'step') return exportFile(id);
   cmd = null;
   pickingPlane = id === 'sketch';
   if (pickingPlane) return refresh();
@@ -557,6 +559,7 @@ const ICON = {
   finish: svg('<path d="M4 12.5l5 5L20 6"/>'),
   undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'),
   stl: svg('<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>'),
+  step: svg('<path d="M12 3v9M8 8l4 4 4-4"/><path d="M4 14l8 4 8-4M4 14v4l8 4 8-4v-4"/>'),
   joint: svg('<circle cx="7" cy="12" r="4"/><circle cx="17" cy="12" r="4"/><circle cx="7" cy="12" r="1" fill="currentColor"/><path d="M11 12h2"/>'),
   drive: svg('<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M17 2v4h-4"/><circle cx="12" cy="12" r="2"/>'),
 };
@@ -591,6 +594,7 @@ function renderToolbar() {
     ]) + group('file', [
       toolBtn('undo', { disabled: !undoStack.length, key: 'Ctrl+Z' }),
       toolBtn('stl', { disabled: !body }),
+      toolBtn('step', { disabled: !body }),
     ]);
 }
 $('#tools').addEventListener('click', e => {
@@ -714,10 +718,10 @@ function hintText() {
 }
 let flashTimer = 0;
 const renderHint = () => { if (!flashTimer) $('#hint').textContent = hintText(); };
-function flash(msg) {
+function flash(msg, ms = 2500) {
   $('#hint').textContent = msg;
   clearTimeout(flashTimer);
-  flashTimer = setTimeout(() => { flashTimer = 0; renderHint(); }, 2500);
+  flashTimer = setTimeout(() => { flashTimer = 0; renderHint(); }, ms);
 }
 
 // ---------- lessons ----------
@@ -730,19 +734,31 @@ const DONE_KEY = 'cad-teacher-done';
 const doneIds = () => { try { return JSON.parse(localStorage.getItem(DONE_KEY)) || []; } catch { return []; } };
 const markDone = id => { try { localStorage.setItem(DONE_KEY, JSON.stringify([...new Set([...doneIds(), id])])); } catch { /* private mode */ } };
 
-function openLesson(def, challenge) {
+// Each lesson's work is kept in this browser, so a reload or coming back later picks up where the kid was.
+const workKey = id => 'cad-teacher-work:' + id;
+const loadWork = id => { try { return JSON.parse(localStorage.getItem(workKey(id))); } catch { return null; } };
+function saveWork() {
+  if (!lesson) return;
+  try { localStorage.setItem(workKey(lesson.def.id), JSON.stringify({ features, joints: asm?.joints, step: lesson.step })); } catch { /* storage full or blocked */ }
+}
+
+function openLesson(def, challenge, fresh = false) {
   sketch = cmd = acmd = null;
   pickingPlane = false;
   sketchControls(false);
   undoStack.length = 0;
-  features = structuredClone(def.start || []);
+  const saved = !fresh && loadWork(def.id);
+  features = structuredClone(saved?.features || def.start || []);
   clear(goalGroup);
   setAssembly(def.assembly);
+  if (asm && saved?.joints) asm.joints = saved.joints;
+  // New ids must not collide with restored ones (u3, j2...).
+  for (const x of [...features, ...(asm?.joints || [])]) uid = Math.max(uid, +String(x.id).replace(/^\D+/, '') || 0);
   const goalBody = def.goal && cad.rebuild(def.goal).body;
   if (goalBody) goalGroup.add(fat(cad.meshOf(goalBody).edges.lines, M.goal));
   goalGroup.visible = showGoal;
   const steps = def.steps || [s => s.match];
-  lesson = { def, challenge, steps, step: 0, startCount: features.length, goal: goalBody && cad.metrics(goalBody) };
+  lesson = { def, challenge, steps, step: saved?.step || 0, startCount: (def.start || []).length, goal: goalBody && cad.metrics(goalBody) };
   rebuildAll();
   renderLearn();
   home();
@@ -822,7 +838,7 @@ $('#learn').addEventListener('click', e => {
     refresh();
   }
   else if (a === 'next') { const x = ALL[ALL.findIndex(x => x.def === lesson.def) + 1]; openLesson(x.def, x.challenge); }
-  else if (a === 'restart') openLesson(lesson.def, lesson.challenge);
+  else if (a === 'restart') openLesson(lesson.def, lesson.challenge, true);
 });
 // Glossary: hovering a <dfn data-term> word in the lesson text shows what it means.
 $('#learn').addEventListener('mouseover', e => {
@@ -1050,6 +1066,7 @@ function refresh(full = true) {
   if (full) renderDialog();
   else updateCmdError();
   checkLesson();
+  saveWork();
   draw();
 }
 

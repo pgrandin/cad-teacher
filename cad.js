@@ -146,6 +146,7 @@ export const meshOf = body => ({
 });
 
 export const stlOf = body => body.blobSTL({ binary: true });
+export const stepOf = body => body.blobSTEP();
 
 // A hole rim for joints: a circular edge on a flat face. Returns its center and the face's outward
 // normal (part coordinates), or null when the edge is not a rim.

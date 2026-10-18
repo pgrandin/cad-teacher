@@ -72,6 +72,7 @@ const m = cad.metrics(cad.rebuild(side).body);
 assert.ok(Math.abs(m.min[1] + 14) < 0.1, 'side extrude should grow toward -Y');
 
 assert.ok((await cad.stlOf(cad.rebuild(LESSONS[0].goal).body).arrayBuffer()).byteLength > 84);
+assert.ok((await cad.stepOf(cad.rebuild(LESSONS[0].goal).body).text()).startsWith('ISO-10303-21;'), 'STEP export');
 // Assembly: a revolute joint puts the link's hole on the base pivot, faces touching, turning about the hole.
 const rimsOf = id => { const b = cad.rebuild([...LESSONS, ...CHALLENGES].find(l => l.id === id).goal).body; return b.edges.map(e => cad.rimRef(b, e.hashCode)).filter(Boolean); };
 const linkRim = rimsOf('robot-link').find(r => r.c[0] === -24 && r.n[2] === 1);
