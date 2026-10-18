@@ -45,6 +45,7 @@ export default {
   'field.d': 'Diamètre',
   'sketch.corners': '{n} coins',
   'sketch.empty': 'Rien de dessiné pour l’instant. Choisis Ligne, Rectangle ou Cercle dans la barre d’outils.',
+  'sketch.replane': "Redéfinir le plan d'esquisse",
   'dlg.delete': 'Supprimer',
   'dlg.cancel': 'Annuler',
   'dlg.ok': 'OK',

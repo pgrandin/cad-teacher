@@ -45,6 +45,7 @@ export default {
   'field.d': 'Diámetro',
   'sketch.corners': '{n} esquinas',
   'sketch.empty': 'Todavía no hay nada dibujado. Elige Línea, Rectángulo o Círculo en la barra de herramientas.',
+  'sketch.replane': 'Redefinir plano de boceto',
   'dlg.delete': 'Eliminar',
   'dlg.cancel': 'Cancelar',
   'dlg.ok': 'Aceptar',

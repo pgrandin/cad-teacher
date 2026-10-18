@@ -45,6 +45,7 @@ export default {
   'field.d': 'Durchmesser',
   'sketch.corners': '{n} Ecken',
   'sketch.empty': 'Noch nichts gezeichnet. Wähle Linie, Rechteck oder Kreis in der Werkzeugleiste.',
+  'sketch.replane': 'Skizzenebene neu definieren',
   'dlg.delete': 'Löschen',
   'dlg.cancel': 'Abbrechen',
   'dlg.ok': 'OK',

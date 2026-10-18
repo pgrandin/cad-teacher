@@ -47,6 +47,7 @@ export default {
   'field.d': 'Diameter',
   'sketch.corners': '{n} corners',
   'sketch.empty': 'Nothing drawn yet. Pick Line, Rectangle or Circle in the toolbar.',
+  'sketch.replane': 'Redefine Sketch Plane',
   'dlg.delete': 'Delete',
   'dlg.cancel': 'Cancel',
   'dlg.ok': 'OK',

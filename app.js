@@ -19,7 +19,7 @@ const fmt = n => String(Math.round(n * 10) / 10);
 
 let features = [];             // the timeline
 let built = cad.rebuild([]);   // the timeline, rebuilt
-let sketch = null;             // sketch mode: { index, feature, plane, before, tool, pts, cursor, sel }
+let sketch = null;             // sketch mode: { index, feature, plane, before, tool, pts, cursor, sel, picking }
 let cmd = null;                // open command: { index, feature, before, preview, sel: Map(edgeId -> edge ref) }
 let pickingPlane = false;      // Create Sketch is waiting for a plane or face click
 let lesson = null;             // { def, challenge, steps, step, startCount, goal, mine, match }
@@ -303,8 +303,9 @@ function lookAtPlane(pl) {
 }
 // Leaving a sketch goes back to the view the kid had picked for the model.
 function sketchControls(on) {
-  controls.enableRotate = !on;
-  controls.mouseButtons.LEFT = !on ? THREE.MOUSE.ROTATE : sketch?.tool ? null : THREE.MOUSE.PAN;
+  const flat = on && !sketch?.picking; // picking a new plane needs orbiting to reach every face
+  controls.enableRotate = !flat;
+  controls.mouseButtons.LEFT = !flat ? THREE.MOUSE.ROTATE : sketch?.tool ? null : THREE.MOUSE.PAN;
   if (!on) useOrtho(modelOrtho);
 }
 $('#home').onclick = () => (sketch ? lookAtPlane(sketch.plane) : home());
@@ -407,24 +408,34 @@ function enterSketch(index, feature) {
   try { plane = cad.resolvePlane(feature.plane, before.body); } catch { plane = cad.planeFrom(cad.BASE_PLANES.XY); }
   pickingPlane = false;
   cmd = null;
-  sketch = { index, feature: structuredClone(feature), plane, before, tool: null, pts: [], cursor: null, sel: -1 };
+  sketch = { index, feature: structuredClone(feature), plane, before, tool: null, pts: [], cursor: null, sel: -1, picking: false };
   sketchControls(true);
   useOrtho(true);
   lookAtPlane(plane);
   refresh();
 }
 
-function finishSketch() {
+// Delete is finishSketch(false). A new sketch with nothing drawn is dropped either way.
+function finishSketch(keep = true) {
   const { index, feature } = sketch;
-  const isNew = index === features.length;
-  if (!isNew || feature.shapes.length) {
+  const isNew = index === features.length, add = keep && (feature.shapes.length || !isNew) ? [feature] : [];
+  if (add.length || !isNew) {
     pushUndo();
-    features.splice(index, isNew ? 0 : 1, feature);
+    features.splice(index, isNew ? 0 : 1, ...add);
   }
   sketch = null;
   sketchControls(false);
   rebuildAll();
   home();
+}
+
+// Redefine Sketch Plane: back to the 3D view to click another plane or face. The shapes keep their sketch coordinates.
+function replane(on) {
+  Object.assign(sketch, { picking: on, tool: null, pts: [] });
+  hover = null;
+  sketchControls(true);
+  on ? home() : lookAtPlane(sketch.plane);
+  refresh();
 }
 
 function editFeature(i) {
@@ -449,6 +460,7 @@ function exportFile(kind) {
 function act(id, fromKey = false) {
   if (asm) return asmAct(id);
   if (sketch) {
+    if (sketch.picking) replane(false);
     if (id === 'finish') return finishSketch();
     sketch.tool = sketch.tool === id && !fromKey ? null : id;
     sketch.pts = [];
@@ -467,6 +479,7 @@ function act(id, fromKey = false) {
 }
 
 function escape() {
+  if (sketch?.picking) return replane(false);
   if (sketch) {
     if (sketch.pts.length) sketch.pts = [];
     else sketch.tool = null;
@@ -489,7 +502,8 @@ function setRay(e) {
 }
 
 function pick(e) {
-  const wantEdge = !!cmd?.sel, wantFace = pickingPlane || printMode || cmd?.feature.type === 'hole';
+  const choosing = pickingPlane || sketch?.picking;
+  const wantEdge = !!cmd?.sel, wantFace = choosing || printMode || cmd?.feature.type === 'hole';
   if (!wantEdge && !wantFace) return null;
   setRay(e);
   const meshHit = picker && ray.intersectObject(picker.mesh)[0];
@@ -506,7 +520,7 @@ function pick(e) {
   }
   // The part's faces win over the see-through origin planes in front of them.
   if (!meshHit) {
-    const planeHit = pickingPlane && ray.intersectObjects(originPlanes)[0];
+    const planeHit = choosing && ray.intersectObjects(originPlanes)[0];
     return planeHit ? { kind: 'plane', id: planeHit.object.userData.base } : null;
   }
   const tri = meshHit.faceIndex * 3;
@@ -519,7 +533,13 @@ function modelClick(e) {
   const h = pick(e);
   if (!h) return;
   if (printMode) { printDown = h.ref.n; hover = null; refresh(); return home(); } // lay this face on the bed
-  if (pickingPlane) return enterSketch(features.length, { type: 'sketch', id: 'u' + ++uid, plane: h.kind === 'plane' ? { base: h.id } : { face: h.ref }, shapes: [] });
+  const plane = h.kind === 'plane' ? { base: h.id } : { face: h.ref };
+  if (pickingPlane) return enterSketch(features.length, { type: 'sketch', id: 'u' + ++uid, plane, shapes: [] });
+  if (sketch) {
+    sketch.feature.plane = plane;
+    sketch.plane = cad.resolvePlane(plane, sketch.before.body);
+    return replane(false);
+  }
   if (h.kind === 'edge') {
     if (cmd.sel.has(h.id)) cmd.sel.delete(h.id);
     else cmd.sel.set(h.id, cad.edgeRef(picker.body, h.id));
@@ -587,10 +607,10 @@ canvas.addEventListener('pointerup', e => {
   if (sketch?.tool) {
     // Drag-to-draw: releasing away from the first corner/center finishes the shape.
     if (moved && sketch.pts.length === 1 && sketch.tool !== 'line') { sketchCursor(e); sketchClick(); }
-  } else if (!moved && !sketch) (asm ? asmClick(e) : modelClick(e));
+  } else if (!moved && (!sketch || sketch.picking)) (asm ? asmClick(e) : modelClick(e));
 });
 canvas.addEventListener('pointermove', e => {
-  if (sketch) {
+  if (sketch && !sketch.picking) {
     if (!sketch.tool) return;
     sketchCursor(e);
     drawSketches();
@@ -706,8 +726,9 @@ function renderDialog() {
       SHAPE_FIELDS[s.kind].map(([k, label]) => num(label, s[k], `data-i="${i}" data-k="${k}"`)).join('') +
       (s.kind === 'poly' ? `<p class="note">${t('sketch.corners', { n: s.pts.length })}</p>` : '') + '</fieldset>').join('');
     el.innerHTML = `<div class="dh">${t('tab.sketch')}<small>${nameAt(sketch.index, 'sketch')}</small></div>
-      <div class="db">${rows || `<p class="note">${t('sketch.empty')}</p>`}</div>
-      <div class="df"><span></span><button data-act="finish" class="ok">${t('tool.finish')}</button></div>`;
+      <div class="db"><button data-act="replane" class="wide${sketch.picking ? ' on' : ''}">${t(sketch.picking ? 'dlg.cancel' : 'sketch.replane')}</button>
+      ${rows || `<p class="note">${t('sketch.empty')}</p>`}</div>
+      <div class="df"><button data-act="delete" class="danger">${t('dlg.delete')}</button><span></span><button data-act="finish" class="ok">${t('tool.finish')}</button></div>`;
     return;
   }
   if (!cmd) return;
@@ -781,7 +802,8 @@ $('#dialog').addEventListener('click', e => {
   else if (a === 'del-shape') { sketch.feature.shapes.splice(+b.dataset.i, 1); sketch.sel = -1; refresh(); }
   else if (a === 'ok') commitCommand();
   else if (a === 'cancel') { cmd = null; refresh(); }
-  else if (a === 'delete') deleteFeature(cmd.index);
+  else if (a === 'replane') replane(!sketch.picking);
+  else if (a === 'delete') sketch ? finishSketch(false) : deleteFeature(cmd.index);
 });
 
 function renderTimeline() {
@@ -805,7 +827,7 @@ function hintText() {
   if (acmd) return t(acmd.kind === 'drive' ? 'hint.drive' : `hint.joint${[acmd.joint.moving, acmd.joint.fixed].filter(Boolean).length}`);
   if (asm) return t('hint.assembly');
   if (printMode) return `${printArea >= 1 ? t('print.area', { n: Math.round(printArea) }) : t('print.none')} · ${t('hint.print')}`;
-  if (pickingPlane) return t('hint.plane');
+  if (pickingPlane || sketch?.picking) return t('hint.plane');
   if (sketch) return t(sketch.tool ? `hint.${sketch.tool}${sketch.pts.length ? 1 : 0}` : 'hint.sketch');
   return t(cmd ? `hint.${cmd.feature.type}` : 'hint.model');
 }
@@ -1183,11 +1205,11 @@ function drawPrint() {
 function refresh(full = true) {
   if (cmd || sketch || pickingPlane || asm || !built.body) printMode = false; // print check is for the finished part
   setShown(cmd ? cmd.preview.body : sketch ? sketch.before.body : built.body);
-  setPicker(cmd ? cmd.before.body : pickingPlane || printMode ? built.body : null);
+  setPicker(cmd ? cmd.before.body : sketch ? (sketch.picking ? sketch.before.body : null) : pickingPlane || printMode ? built.body : null);
   grid.visible = !sketch;
   diffGroup.visible = !sketch && !cmd && !printMode; // differences are about the finished part, not a preview
   drawPrint();
-  originPlanes.forEach(p => (p.visible = pickingPlane));
+  originPlanes.forEach(p => (p.visible = pickingPlane || !!sketch?.picking));
   canvas.style.cursor = sketch?.tool ? 'crosshair' : '';
   if (!sketch?.tool) $('#readout').hidden = true;
   drawSketches();
