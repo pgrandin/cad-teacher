@@ -6,7 +6,7 @@ import { LineSegments2 } from './vendor/LineSegments2.js';
 import { LineSegmentsGeometry } from './vendor/LineSegmentsGeometry.js';
 import { LineMaterial } from './vendor/LineMaterial.js';
 import * as cad from './cad.js';
-import { LESSONS, CHALLENGES } from './lessons.js';
+import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
 import { t, tn, lang, setLang, LANGS } from './i18n.js';
 
 const $ = s => document.querySelector(s);
@@ -410,8 +410,11 @@ function pick(e) {
   if (wantEdge) {
     if (!picker) return null;
     const tol = (ray.params.Line.threshold = camera.position.distanceTo(controls.target) * 0.01);
-    const h = ray.intersectObject(picker.lines)[0];
-    if (!h || (meshHit && h.distance > meshHit.distance + tol)) return null; // hidden behind the part
+    // Of the visible edges near the cursor, take the one closest to it (short edges meet long ones at corners).
+    const h = ray.intersectObject(picker.lines)
+      .filter(h => !meshHit || h.distance <= meshHit.distance + tol)
+      .sort((a, b) => ray.ray.distanceSqToPoint(a.point) - ray.ray.distanceSqToPoint(b.point))[0];
+    if (!h) return null;
     const g = picker.m.edges.edgeGroups.find(g => h.index >= g.start && h.index < g.start + g.count);
     return g && { kind: 'edge', id: g.edgeId };
   }
@@ -455,7 +458,7 @@ function sketchCursor(e) {
   ro.textContent = !d0 ? `${c[0]}, ${c[1]}`
     : sketch.tool === 'rect' ? `${Math.abs(c[0] - a[0])} × ${Math.abs(c[1] - a[1])}`
     : sketch.tool === 'circle' ? `Ø ${circleD(a, c)}`
-    : `${fmt(Math.hypot(c[0] - sketch.pts.at(-1)[0], c[1] - sketch.pts.at(-1)[1]))} mm`;
+    : `${c[0]}, ${c[1]} · ${fmt(Math.hypot(c[0] - sketch.pts.at(-1)[0], c[1] - sketch.pts.at(-1)[1]))} mm`;
   const r = view.getBoundingClientRect();
   ro.style.left = e.clientX - r.left + 16 + 'px';
   ro.style.top = e.clientY - r.top + 16 + 'px';
@@ -578,7 +581,9 @@ $('#tools').addEventListener('click', e => {
   if (b) act(b.dataset.tool);
 });
 
-const num = (label, value, attrs) => `<label>${t(label)}<input type="number" step="1" value="${value}" ${attrs}></label>`;
+// Text fields, not type=number: kids type "3,5" in fr/es/de, and number inputs drop that in some browsers.
+const showNum = v => Number(v).toLocaleString(lang, { useGrouping: false, maximumFractionDigits: 3 });
+const num = (label, value, attrs) => `<label>${t(label)}<input type="text" inputmode="decimal" value="${showNum(value)}" ${attrs}></label>`;
 const select = (label, k, value, options) =>
   `<label>${t(label)}<select data-k="${k}">${options.map(([v, text]) => `<option value="${v}"${v === value ? ' selected' : ''}>${text}</option>`).join('')}</select></label>`;
 const SHAPE_FIELDS = {
@@ -631,7 +636,7 @@ function updateCmdError() {
 $('#dialog').addEventListener('input', e => {
   const el = e.target, k = el.dataset.k;
   if (!k) return;
-  const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
+  const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value.replace(',', '.'));
   if (Number.isNaN(v)) return; // half-typed, like "-"
   if (sketch) {
     sketch.feature.shapes[+el.dataset.i][k] = v;
@@ -691,7 +696,11 @@ function flash(msg) {
 }
 
 // ---------- lessons ----------
-const ALL = [...LESSONS.map(def => ({ def, challenge: false })), ...CHALLENGES.map(def => ({ def, challenge: true }))];
+// Menu and "Next" order: course by course, lessons first, then that course's challenges.
+const ALL = COURSES.flatMap(c => [
+  ...LESSONS.filter(d => d.course === c).map(def => ({ def, challenge: false })),
+  ...CHALLENGES.filter(d => d.course === c).map(def => ({ def, challenge: true })),
+]);
 const DONE_KEY = 'cad-teacher-done';
 const doneIds = () => { try { return JSON.parse(localStorage.getItem(DONE_KEY)) || []; } catch { return []; } };
 const markDone = id => { try { localStorage.setItem(DONE_KEY, JSON.stringify([...new Set([...doneIds(), id])])); } catch { /* private mode */ } };
@@ -734,16 +743,18 @@ function renderLearn() {
   const el = $('#learn');
   if (!lesson) {
     const done = doneIds();
-    const item = (x, i) => `<li><button data-open="${x.def.id}">${done.includes(x.def.id) ? '✅' : `<b>${i + 1}</b>`} ${lt(x, 'title')}</button></li>`;
-    el.innerHTML = `<h2>${t('learn.lessons')}</h2><ol class="menu">${ALL.filter(x => !x.challenge).map(item).join('')}</ol>
-      <h2>${t('learn.challenges')}</h2><ol class="menu">${ALL.filter(x => x.challenge).map(item).join('')}</ol>
-      <p class="tip">${t('learn.tip')}</p>`;
+    const badge = (x, i) => (done.includes(x.def.id) ? '✅' : x.challenge ? `<b class="star" title="${t('learn.challengeBadge')}">★</b>` : `<b>${i + 1}</b>`);
+    const item = (x, i) => `<li><button data-open="${x.def.id}">${badge(x, i)} ${lt(x, 'title')}</button></li>`;
+    el.innerHTML = COURSES.map(c => `<h2>${t(`course.${c}.title`)}</h2><p class="tip">${t(`course.${c}.intro`)}</p>
+      <ol class="menu">${ALL.filter(x => x.def.course === c).map(item).join('')}</ol>`).join('') +
+      `<p class="tip">${t('learn.tip')}</p>`;
     return;
   }
   const { def, challenge, steps, step } = lesson;
   const won = step >= steps.length;
   const next = ALL[ALL.findIndex(x => x.def === def) + 1];
   el.innerHTML = `<button class="back" data-act="back">${t('learn.back')}</button>
+    <div class="course">${t(`course.${def.course}.title`)}</div>
     ${challenge
       ? `<h2>${t('learn.challenge', { title: lt(lesson, 'title') })}</h2>
         <p>${t('learn.build')}</p><ul class="brief">${lt(lesson, 'brief').map(b => `<li>${b}</li>`).join('')}</ul>

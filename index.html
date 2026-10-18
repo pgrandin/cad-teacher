@@ -32,9 +32,12 @@
   main { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
   #learn { background: #fff; border-right: 1px solid var(--line); overflow: auto; padding: 14px 16px; }
   #learn h2 { font-size: 15px; margin: 4px 0 8px; }
+  #learn h2 + .tip { margin-top: -4px; }
   .menu { list-style: none; padding: 0; margin: 0 0 16px; }
   .menu button { display: flex; gap: 8px; align-items: center; width: 100%; text-align: left; padding: 8px 10px; margin: 3px 0; border: 1px solid var(--line); border-radius: 4px; background: #fff; cursor: pointer; }
   .menu button:hover { border-color: var(--blue); background: #f2f8fc; }
+  .menu b.star { background: #f5a623; }
+  .course { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .menu b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 11px; }
   .steps { padding-left: 20px; }
   .steps li { margin: 8px 0; color: var(--muted); }

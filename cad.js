@@ -74,13 +74,16 @@ function drawingOf(s) {
   return pen.close();
 }
 
+// Merge coplanar faces left by booleans, so fused shapes have no seam lines and fillets see whole faces.
+const clean = shape => { try { return shape.simplify(); } catch { return shape; } };
+
 // ponytail: every closed shape in a sketch becomes solid (union); no Fusion-style profile picking.
 function extrudeSketch(sk, pl, distance) {
   if (!sk.shapes.length) throw new Error('err.emptySketch');
   if (!distance) throw new Error('err.zeroDistance');
   return sk.shapes
     .map(s => drawingOf(s).sketchOnPlane(new R.Plane(pl.o, pl.u, pl.n)).extrude(distance))
-    .reduce((a, b) => a.fuse(b));
+    .reduce((a, b) => clean(a.fuse(b)));
 }
 
 // Errors are i18n keys (see locales/). OpenCascade's own failures map to one per feature type.
@@ -100,8 +103,8 @@ export function rebuild(features) {
         const solid = extrudeSketch(sk, planes[sk.id], f.distance);
         if (f.op === 'cut') {
           if (!body) throw new Error('err.nothingToCut');
-          body = body.cut(solid);
-        } else body = body ? body.fuse(solid) : solid;
+          body = clean(body.cut(solid));
+        } else body = body ? clean(body.fuse(solid)) : solid;
       } else if (f.type === 'fillet' || f.type === 'chamfer') {
         if (!body) throw new Error('err.nothingToRound');
         if (!(f.r > 0)) throw new Error('err.sizePositive');
@@ -114,7 +117,7 @@ export function rebuild(features) {
         const pl = resolvePlane({ face: f.face }, body);
         const p = add(add(pl.o, pl.u, f.x), pl.v, f.y);
         const depth = f.depth > 0 ? f.depth : 1000; // 0 = through all
-        body = body.cut(R.makeCylinder(f.d / 2, depth + 1, add(p, pl.n, 1), pl.n.map(x => -x)));
+        body = clean(body.cut(R.makeCylinder(f.d / 2, depth + 1, add(p, pl.n, 1), pl.n.map(x => -x))));
       }
     } catch (e) {
       errors[f.id] = e instanceof Error && e.message.startsWith('err.') ? e.message : FAIL[f.type] || 'err.failed';
@@ -130,9 +133,10 @@ export function metrics(body) {
 }
 
 // ponytail: same volume + same bounding box counts as "same part"; enough for lessons.
+// Tight on volume: the kid's part and the goal come from the same engine, and a small fillet is only ~0.5%.
 export function sameShape(a, b) {
   if (!a || !b) return false;
-  return Math.abs(a.volume - b.volume) <= 0.005 * b.volume &&
+  return Math.abs(a.volume - b.volume) <= Math.max(0.05, 1e-4 * b.volume) &&
     [0, 1, 2].every(i => Math.abs(a.min[i] - b.min[i]) < 0.1 && Math.abs(a.max[i] - b.max[i]) < 0.1);
 }
 

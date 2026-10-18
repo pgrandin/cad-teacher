@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import * as cad from './cad.js';
 import { readFileSync } from 'node:fs';
-import { LESSONS, CHALLENGES } from './lessons.js';
+import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
 import { LANGS } from './i18n.js';
 
 await cad.init(fileURLToPath(new URL('./vendor/replicad_single.wasm', import.meta.url)));
@@ -23,9 +23,18 @@ const expected = {
   brick: 32 * 16 * 10 + 2 * PI * 25 * 4,
   bracket: 40 * 30 * 5 + 40 * 5 * 25 - 2 * PI * 6.25 * 5,
   cup: (60 * 40 - 4 * (25 - 25 * PI / 4)) * 30 - 50 * 30 * 25,
+  'robot-base': PI * 900 * 6 + 2 * 4 * 20 * 24 - 2 * PI * 1.75 ** 2 * 4,
+  'robot-link': 48 * 12 * 6 + PI * 36 * 6 - 2 * PI * 1.75 ** 2 * 6,
+  'robot-finger': (40 * 6 + 6 * 14) * 5 + (4 - PI) * 5 - PI * 1.75 ** 2 * 5,
+  'robot-longlink': 80 * 12 * 6 + PI * 36 * 6 - 2 * PI * 1.75 ** 2 * 6,
+  'elf-table': 4 * PI * 9 * 40 + 80 * 50 * 4 - 4 * (25 - 25 * PI / 4) * 4,
+  'elf-chair': 4 * 16 * 25 + 30 * 30 * 3 + 30 * 3 * 30 - 2 * (25 - 25 * PI / 4) * 3,
+  'elf-shelf': 50 * 20 * 70 - 3 * 44 * 18 * 16,
+  'elf-bed': 40 * 70 * 8 + 40 * 4 * 25 + 24 * 10 * 4 - 4 * (9 - 9 * PI / 4) * 4,
 };
 
 for (const l of [...LESSONS, ...CHALLENGES]) {
+  assert.ok(COURSES.includes(l.course), `${l.id}: unknown course`);
   const r = cad.rebuild(l.goal);
   assert.deepEqual(r.errors, {}, `${l.id} goal has errors`);
   near(vol(l.goal), expected[l.id]);
@@ -38,6 +47,10 @@ edited[0].shapes[0].w = 60;
 edited[1].distance = 15;
 const goal = cad.metrics(cad.rebuild(LESSONS.find(l => l.id === 'change').goal).body);
 assert.ok(cad.sameShape(cad.metrics(cad.rebuild(edited).body), goal), 'edited timeline should match goal');
+
+// A part that only misses its small fillets must not count as done.
+const chair = LESSONS.find(l => l.id === 'elf-chair').goal;
+assert.ok(!cad.sameShape(cad.metrics(cad.rebuild(chair.slice(0, -1)).body), cad.metrics(cad.rebuild(chair).body)), 'chair without fillets');
 
 // A fillet that is too big fails cleanly instead of crashing, with a translatable error.
 const bad = [...LESSONS[0].goal, { type: 'fillet', id: 'x', edges: LESSONS[1].goal[2].edges, r: 50 }];
@@ -66,5 +79,6 @@ for (const [code, d] of Object.entries(LANGS)) {
 }
 for (const l of LESSONS) assert.equal(en[`lesson.${l.id}.steps`].length, l.steps.length, `${l.id}: one text per step`);
 for (const c of CHALLENGES) assert.ok(en[`challenge.${c.id}.brief`], `${c.id}: brief`);
+for (const c of COURSES) assert.ok(en[`course.${c}.title`], `course ${c}: title`);
 for (const [k] of readFileSync(new URL('./cad.js', import.meta.url), 'utf8').matchAll(/err\.\w+/g)) assert.ok(k in en, `missing ${k}`);
 console.log('ok');

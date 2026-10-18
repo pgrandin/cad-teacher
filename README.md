@@ -3,8 +3,10 @@
 **Try it: https://pgrandin.github.io/cad-teacher/**
 
 Teaches kids the Fusion 360 / SolidWorks way to model: sketch, extrude, then build features on
-features (fillet, chamfer, hole), with a timeline you can go back and edit. Six guided lessons and
-five challenges, each checked against a goal shape. Parts export to STL.
+features (fillet, chamfer, hole), with a timeline you can go back and edit. Three courses, each with
+guided lessons and challenges checked against a goal shape: the basics, "Design your robot arm"
+(printable parts joined with M3 screws), and "Elf furniture" (dollhouse table, chair, bookshelf, bed).
+Parts export to STL.
 
 Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
 [replicad](https://replicad.xyz), WebAssembly). The view is three.js. Both are vendored in `vendor/`.
@@ -16,7 +18,7 @@ Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
 Languages: English, Français, Español, Deutsch (picker in the header, or `?lang=fr` in the URL).
 Tool names match Fusion 360's own UI in each language, so kids find the same words there.
 
-To add a lesson or challenge, append it to `lessons.js` (its goal is a feature list), add its words
+To add a lesson or challenge, append it to `lessons.js` with its `course` (its goal is a feature list), add its words
 to every file in `locales/`, and add its expected volume to `test.mjs`.
 
 To add a language, copy `locales/en.js`, translate it, and list it in `i18n.js`. `node test.mjs`
