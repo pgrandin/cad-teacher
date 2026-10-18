@@ -9,6 +9,7 @@ import * as cad from './cad.js';
 import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
 import { t, tn, lang, setLang, LANGS } from './i18n.js';
 import { poses } from './assembly.js';
+import { VERSION } from './version.js';
 
 const $ = s => document.querySelector(s);
 const V = a => new THREE.Vector3(...a);
@@ -1058,6 +1059,7 @@ function applyLang() {
   $('#lang').title = t('app.language');
   $('#home').title = t('app.home');
   $('#timeline-label').textContent = t('app.timeline');
+  $('#version').title = t('app.version');
   $('#loading')?.replaceChildren(t('app.loading'));
 }
 $('#lang').innerHTML = Object.entries(LANGS).map(([k, d]) => `<option value="${k}"${k === lang ? ' selected' : ''}>${d['lang.name']}</option>`).join('');
@@ -1067,6 +1069,10 @@ $('#lang').addEventListener('change', e => {
   renderLearn();
   refresh();
 });
+
+// Which commit this page runs (stamped at deploy), linked to it on GitHub.
+$('#version').textContent = VERSION;
+if (VERSION !== 'dev') $('#version').href = `https://github.com/pgrandin/cad-teacher/commit/${VERSION}`;
 
 applyLang();
 renderLearn();

@@ -6,6 +6,7 @@ export default {
   'app.loadFailed': 'Could not load the CAD engine: {msg}',
   'app.home': 'Home view',
   'app.timeline': 'TIMELINE',
+  'app.version': 'Version running in this page',
   'app.language': 'Language',
 
   'tab.solid': 'SOLID',

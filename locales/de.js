@@ -5,6 +5,7 @@ export default {
   'app.loadFailed': 'Die CAD-Engine konnte nicht geladen werden: {msg}',
   'app.home': 'Startansicht',
   'app.timeline': 'ZEITACHSE',
+  'app.version': 'Version dieser Seite',
   'app.language': 'Sprache',
 
   'tab.solid': 'VOLUMENKÖRPER',

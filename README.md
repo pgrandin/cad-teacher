@@ -14,7 +14,8 @@ Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
 
 - Run locally: `python3 -m http.server -d .`, then open http://localhost:8000
 - Test the engine and every lesson goal: `node test.mjs`
-- Deploy: every push to `main` publishes to GitHub Pages.
+- Deploy: every push to `main` runs `.github/workflows/pages.yml`: tests, stamps the commit (shown in the
+  page footer), cache-busts the app files, and publishes to GitHub Pages.
 
 Languages: English, Français, Español, Deutsch (picker in the header, or `?lang=fr` in the URL).
 Tool names match Fusion 360's own UI in each language, so kids find the same words there.

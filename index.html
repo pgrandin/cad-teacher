@@ -107,6 +107,8 @@
   .chip.err { background: #7a2a22; border-color: var(--warn); }
   .chip.rolled { opacity: .35; }
   .empty { opacity: .6; font-style: italic; }
+  #version { margin-left: auto; font: 11px ui-monospace, monospace; color: #8b949e; text-decoration: none; }
+  #version[href]:hover { color: #cfd5da; text-decoration: underline; }
   #loading { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(244, 245, 246, .95); font-size: 16px; }
 </style>
 </head>
@@ -132,6 +134,7 @@
 <footer>
   <span class="label" id="timeline-label">TIMELINE</span>
   <div id="chips"></div>
+  <a id="version" target="_blank" rel="noopener"></a>
 </footer>
 <div id="tip" hidden></div>
 <div id="loading">Loading the CAD engine…</div>

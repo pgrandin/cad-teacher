@@ -5,6 +5,7 @@ export default {
   'app.loadFailed': 'Impossible de charger le moteur de CAO : {msg}',
   'app.home': 'Vue d’accueil',
   'app.timeline': 'CHRONOLOGIE',
+  'app.version': 'Version de cette page',
   'app.language': 'Langue',
 
   'tab.solid': 'SOLIDE',

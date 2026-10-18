@@ -5,6 +5,7 @@ export default {
   'app.loadFailed': 'No se pudo cargar el motor CAD: {msg}',
   'app.home': 'Vista inicial',
   'app.timeline': 'LÍNEA DE TIEMPO',
+  'app.version': 'Versión de esta página',
   'app.language': 'Idioma',
 
   'tab.solid': 'SÓLIDO',
