@@ -397,9 +397,8 @@ export default {
     'Pattern the hole around the center: 4 holes in total',
   ],
 
-  // Simple-words versions of the explanations (the "Simple words" switch, on by default).
-  'learn.wordsSimple': 'Simple words',
-  'learn.wordsFusion': 'Fusion words',
+  // Simple-words versions of the explanations, folded under each one ("In simple words").
+  'learn.simpleToggle': 'In simple words',
   'course.basics.intro.simple': 'Draw a flat shape, make it thick, then add more on top. Fusion calls these steps <dfn data-term="sketch">sketch</dfn> and <dfn data-term="extrude">extrude</dfn>.',
   'course.robot.intro.simple': 'Make the pieces of a little robot arm. Then connect them so the arm can bend. You can print the pieces and hold them together with small screws.',
   'course.elf.intro.simple': 'Make tiny furniture for a doll house: a table, a chair, a bookshelf. Everything is 12 times smaller than the real thing.',

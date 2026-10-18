@@ -32,10 +32,12 @@
   main { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
   #learn { background: #fff; border-right: 1px solid var(--line); overflow: auto; padding: 14px 16px; }
   #learn h2 { font-size: 15px; margin: 4px 0 8px; }
-  .words { display: flex; gap: 0; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-  .words button { flex: 1; padding: 5px 8px; border: none; background: #fff; color: var(--muted); font-size: 12px; cursor: pointer; }
-  .words button + button { border-left: 1px solid var(--line); }
-  .words button.on { background: var(--blue); color: #fff; font-weight: 600; }
+  details.simple { margin: -6px 0 10px; font-size: 12px; }
+  details.simple summary { display: inline-block; color: var(--blue); cursor: pointer; }
+  details.simple summary::marker, details.simple summary::-webkit-details-marker { display: none; }
+  details.simple summary::after { content: ' ▸'; }
+  details.simple[open] summary::after { content: ' ▾'; }
+  details.simple p { margin: 4px 0 0; padding: 6px 8px; border-left: 3px solid var(--blue); border-radius: 3px; background: #f2f8fc; color: var(--ink); font-size: 13px; }
   .course-card { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 10px; padding: 0 10px; }
   .course-card summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 14px; font-weight: 600; cursor: pointer; list-style: none; }
   .course-card summary::-webkit-details-marker { display: none; }
@@ -72,6 +74,7 @@
   dfn[data-term] { font-style: normal; font-weight: 600; border-bottom: 1.5px dotted var(--blue); cursor: help; }
   #tip { position: fixed; z-index: 20; max-width: 260px; padding: 8px 10px; border-radius: 6px; background: var(--dark); color: #fff; font-size: 12px; line-height: 1.45; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); pointer-events: none; }
   #tip b { display: block; margin-bottom: 2px; color: #8fd3ff; }
+  #tip i { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, .2); font-style: normal; color: #c9d4dc; }
 
   #view { position: relative; min-height: 0; overflow: hidden; background: linear-gradient(#fbfcfd, #d6dee4); }
   canvas { display: block; }

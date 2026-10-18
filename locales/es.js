@@ -395,9 +395,8 @@ export default {
     'Haz un patrón del agujero alrededor del centro: 4 agujeros en total',
   ],
 
-  // Simple-words versions of the explanations (the "Simple words" switch, on by default).
-  'learn.wordsSimple': 'Palabras sencillas',
-  'learn.wordsFusion': 'Palabras de Fusion',
+  // Simple-words versions of the explanations, folded under each one ("In simple words").
+  'learn.simpleToggle': 'En palabras sencillas',
   'course.basics.intro.simple': 'Dibuja una forma plana, hazla gruesa y luego añade más cosas encima. En Fusion, estos pasos se llaman <dfn data-term="sketch">boceto</dfn> y <dfn data-term="extrude">extrusión</dfn>.',
   'course.robot.intro.simple': 'Haz las piezas de un pequeño brazo robot. Luego conéctalas para que el brazo pueda doblarse. Puedes imprimir las piezas y sujetarlas con tornillos pequeños.',
   'course.elf.intro.simple': 'Haz muebles diminutos para una casa de muñecas: una mesa, una silla, una estantería. Todo es 12 veces más pequeño que los muebles de verdad.',

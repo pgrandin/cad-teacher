@@ -817,15 +817,15 @@ function checkLesson() {
 
 const sizeOf = m => (m ? [0, 1, 2].map(i => fmt(m.max[i] - m.min[i])).join(' × ') : '-');
 const volOf = m => (m ? Math.round(m.volume).toLocaleString(lang) + ' mm³' : '-');
-// Explanations come in two versions: simple words (default, for kids) and Fusion words (the real jargon).
-// A text uses its "<key>.simple" version when there is one and the switch says so.
-const WORDS_KEY = 'cad-teacher-words';
-let words = (() => { try { return localStorage.getItem(WORDS_KEY) || 'simple'; } catch { return 'simple'; } })();
-const tw = key => t(words === 'simple' && has(key + '.simple') ? key + '.simple' : key);
-const wordsSwitch = () => `<div class="words" role="group">${['simple', 'fusion'].map(w =>
-  `<button data-words="${w}"${w === words ? ' class="on"' : ''}>${t(w === 'simple' ? 'learn.wordsSimple' : 'learn.wordsFusion')}</button>`).join('')}</div>`;
 // Text of a lesson or challenge ({ def, challenge }) from the locale files.
-const lt = (x, k) => tw(`${x.challenge ? 'challenge' : 'lesson'}.${x.def.id}.${k}`);
+const ltKey = (x, k) => `${x.challenge ? 'challenge' : 'lesson'}.${x.def.id}.${k}`;
+const lt = (x, k) => t(ltKey(x, k));
+// An explanation in Fusion words, with its "<key>.simple" version folded underneath for kids who
+// want it easier. Opened ones stay open while the panel redraws.
+const openSimple = new Set();
+const explain = (key, cls = '') => `<p${cls ? ` class="${cls}"` : ''}>${t(key)}</p>` + (has(key + '.simple')
+  ? `<details class="simple" data-simple="${key}"${openSimple.has(key) ? ' open' : ''}><summary>${t('learn.simpleToggle')}</summary><p>${t(key + '.simple')}</p></details>`
+  : '');
 
 // Courses fold open like <details>. Only the course being worked on starts open, so every course title fits.
 const openCourses = new Set();
@@ -836,19 +836,19 @@ function renderLearn() {
     if (!openCourses.size) openCourses.add((next || ALL[0]).def.course);
     const badge = (x, i) => (done.includes(x.def.id) ? '✅' : x.challenge ? `<b class="star" title="${t('learn.challengeBadge')}">★</b>` : `<b>${i + 1}</b>`);
     const item = (x, i) => `<li><button data-open="${x.def.id}"${x === next ? ' class="next"' : ''}>${badge(x, i)} ${lt(x, 'title')}</button></li>`;
-    el.innerHTML = wordsSwitch() + COURSES.map((c, ci) => {
+    el.innerHTML = COURSES.map((c, ci) => {
       const items = ALL.filter(x => x.def.course === c), n = items.filter(x => done.includes(x.def.id)).length;
       const start = ci === 0 && !done.length ? ` <em class="tag">${t('learn.startHere')}</em>` : '';
       return `<details class="course-card" data-course="${c}"${openCourses.has(c) ? ' open' : ''}>
         <summary><span>${t(`course.${c}.title`)}${start}</span><small>${n}/${items.length}</small></summary>
-        <p class="tip">${tw(`course.${c}.intro`)}</p><ol class="menu">${items.map(item).join('')}</ol></details>`;
+        ${explain(`course.${c}.intro`, 'tip')}<ol class="menu">${items.map(item).join('')}</ol></details>`;
     }).join('') + `<p class="tip">${t('learn.tip')}</p>`;
     return;
   }
   const { def, challenge, steps, step } = lesson;
   const won = step >= steps.length;
   const next = ALL[ALL.findIndex(x => x.def === def) + 1];
-  el.innerHTML = `${wordsSwitch()}<button class="back" data-act="back">${t('learn.back')}</button>
+  el.innerHTML = `<button class="back" data-act="back">${t('learn.back')}</button>
     <div class="course">${t(`course.${def.course}.title`)}</div>
     ${challenge
       ? `<h2>${t('learn.challenge', { title: lt(lesson, 'title') })}</h2>
@@ -856,9 +856,9 @@ function renderLearn() {
         <table class="cmp"><tr><th></th><th>${t('learn.yours')}</th><th>${t('learn.goal')}</th></tr>
         <tr><td>${t('learn.size')}</td><td>${sizeOf(lesson.mine)}</td><td>${sizeOf(lesson.goal)}</td></tr>
         <tr><td>${t('learn.volume')}</td><td>${volOf(lesson.mine)}</td><td>${volOf(lesson.goal)}</td></tr></table>`
-      : `<h2>${lt(lesson, 'title')}</h2><p>${lt(lesson, 'intro')}</p>
+      : `<h2>${lt(lesson, 'title')}</h2>${explain(ltKey(lesson, 'intro'))}
         <ol class="steps">${lt(lesson, 'steps').map((text, i) => `<li class="${i < step ? 'done' : i === step ? 'now' : ''}">${text}</li>`).join('')}</ol>`}
-    ${won ? `<div class="win"><b>${t('learn.win')}</b>${challenge ? '' : `<p>${lt(lesson, 'outro')}</p>`}${next ? `<button class="btn" data-act="next">${t('learn.next', { title: lt(next, 'title') })}</button>` : ''}</div>` : ''}
+    ${won ? `<div class="win"><b>${t('learn.win')}</b>${challenge ? '' : explain(ltKey(lesson, 'outro'))}${next ? `<button class="btn" data-act="next">${t('learn.next', { title: lt(next, 'title') })}</button>` : ''}</div>` : ''}
     ${lesson.goal ? `<label class="check"><input type="checkbox" data-act="goal"${showGoal ? ' checked' : ''}> ${t('learn.showGoal')}</label>
       <label class="check"><input type="checkbox" data-act="diff"${showDiff ? ' checked' : ''}> ${t('learn.showDiff')}</label>
       ${showDiff ? `<p class="tip">${lesson.diff?.missing || lesson.diff?.extra
@@ -867,12 +867,6 @@ function renderLearn() {
     <button class="btn" data-act="restart">${t('learn.restart')}</button>`;
 }
 $('#learn').addEventListener('click', e => {
-  const w = e.target.closest('[data-words]')?.dataset.words;
-  if (w) {
-    words = w;
-    try { localStorage.setItem(WORDS_KEY, w); } catch { /* private mode */ }
-    return renderLearn();
-  }
   const el = e.target.closest('[data-open], [data-act]');
   if (!el) return;
   if (el.dataset.open) {
@@ -900,7 +894,8 @@ $('#learn').addEventListener('click', e => {
 $('#learn').addEventListener('mouseover', e => {
   const d = e.target.closest('[data-term]'), tip = $('#tip');
   if (!d) return;
-  tip.innerHTML = `<b>${t(`term.${d.dataset.term}.name`)}</b>${tw(`term.${d.dataset.term}.def`)}`;
+  const k = `term.${d.dataset.term}.def`;
+  tip.innerHTML = `<b>${t(`term.${d.dataset.term}.name`)}</b>${t(k)}${has(k + '.simple') ? `<i>${t('learn.simpleToggle')}: ${t(k + '.simple')}</i>` : ''}`;
   tip.hidden = false;
   const r = d.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
   tip.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
@@ -911,8 +906,9 @@ $('#learn').addEventListener('scroll', () => { $('#tip').hidden = true; });
 
 // <details> toggle events don't bubble: listen in the capture phase to remember what the kid opened.
 $('#learn').addEventListener('toggle', e => {
-  const c = e.target.dataset?.course;
+  const { course: c, simple } = e.target.dataset || {};
   if (c) e.target.open ? openCourses.add(c) : openCourses.delete(c);
+  if (simple) e.target.open ? openSimple.add(simple) : openSimple.delete(simple);
 }, true);
 $('#learn').addEventListener('change', e => {
   if (e.target.dataset.act === 'goal') showGoal = goalGroup.visible = e.target.checked;

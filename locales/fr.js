@@ -395,9 +395,8 @@ export default {
     'Un réseau du trou autour du centre : 4 trous en tout',
   ],
 
-  // Simple-words versions of the explanations (the "Simple words" switch, on by default).
-  'learn.wordsSimple': 'Mots simples',
-  'learn.wordsFusion': 'Mots de Fusion',
+  // Simple-words versions of the explanations, folded under each one ("In simple words").
+  'learn.simpleToggle': 'En mots simples',
   'course.basics.intro.simple': 'Dessine une forme plate, rends-la épaisse, puis ajoute des choses dessus. Dans Fusion, ces étapes s’appellent <dfn data-term="sketch">esquisse</dfn> et <dfn data-term="extrude">extrusion</dfn>.',
   'course.robot.intro.simple': 'Fabrique les pièces d’un petit bras robot. Ensuite, relie-les pour que le bras puisse plier. Tu peux imprimer les pièces et les tenir avec de petites vis.',
   'course.elf.intro.simple': 'Fabrique de tout petits meubles pour une maison de poupée : une table, une chaise, une bibliothèque. Tout est 12 fois plus petit que les vrais.',

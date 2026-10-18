@@ -395,9 +395,8 @@ export default {
     'Ordne das Loch rund um die Mitte an: 4 Löcher insgesamt',
   ],
 
-  // Simple-words versions of the explanations (the "Simple words" switch, on by default).
-  'learn.wordsSimple': 'Einfache Wörter',
-  'learn.wordsFusion': 'Fusion-Wörter',
+  // Simple-words versions of the explanations, folded under each one ("In simple words").
+  'learn.simpleToggle': 'In einfachen Worten',
   'course.basics.intro.simple': 'Zeichne eine flache Form, mach sie dick und setz dann mehr obendrauf. In Fusion heißen diese Schritte <dfn data-term="sketch">Skizze</dfn> und <dfn data-term="extrude">Extrusion</dfn>.',
   'course.robot.intro.simple': 'Bau die Teile eines kleinen Roboterarms. Dann verbindest du sie, damit sich der Arm biegen kann. Du kannst die Teile drucken und mit kleinen Schrauben zusammenhalten.',
   'course.elf.intro.simple': 'Bau winzige Möbel für ein Puppenhaus: einen Tisch, einen Stuhl, ein Regal. Alles ist 12-mal kleiner als echte Möbel.',

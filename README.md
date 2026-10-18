@@ -18,8 +18,8 @@ Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
 - Deploy: every push to `main` runs `.github/workflows/pages.yml`: tests, stamps the commit (shown in the
   page footer), cache-busts the app files, and publishes to GitHub Pages.
 
-Explanations come in "Simple words" (default, for kids) and "Fusion words" (the real jargon); a switch
-on top of the lesson panel flips between them. Languages: English, Français, Español, Deutsch (picker in the header, or `?lang=fr` in the URL).
+Explanations use Fusion's own words, with an "In simple words" fold-out under each one for younger
+kids. Languages: English, Français, Español, Deutsch (picker in the header, or `?lang=fr` in the URL).
 Tool names match Fusion 360's own UI in each language, so kids find the same words there.
 
 To add a lesson or challenge, append it to `lessons.js` with its `course` (its goal is a feature list), add its words
