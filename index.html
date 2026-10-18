@@ -78,6 +78,10 @@
   .df .ok { background: var(--blue); border-color: var(--blue); color: #fff; }
   .df .ok:disabled { opacity: .4; cursor: default; }
   .df .danger { color: var(--warn); }
+  #parts { position: absolute; top: 56px; left: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: rgba(255, 255, 255, .92); font-size: 12px; }
+  #parts b { display: block; font-size: 10px; letter-spacing: .06em; color: var(--muted); margin-bottom: 2px; }
+  #parts i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .slider { width: 100%; margin: 2px 0 8px; accent-color: var(--blue); }
   #hint { position: absolute; left: 12px; bottom: 12px; max-width: 70%; padding: 6px 10px; border-radius: 4px; background: rgba(43, 48, 54, .85); color: #fff; }
   #readout { position: absolute; pointer-events: none; padding: 1px 6px; border: 1px solid var(--blue); border-radius: 3px; background: #fff; font-size: 12px; font-variant-numeric: tabular-nums; }
 
@@ -107,6 +111,7 @@
   <aside id="learn"></aside>
   <div id="view">
     <button id="home" title="Home view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 11l9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5"/></svg></button>
+    <div id="parts" hidden></div>
     <div id="dialog" hidden></div>
     <div id="hint"></div>
     <div id="readout" hidden></div>

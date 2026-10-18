@@ -5,7 +5,8 @@
 Teaches kids the Fusion 360 / SolidWorks way to model: sketch, extrude, then build features on
 features (fillet, chamfer, hole), with a timeline you can go back and edit. Three courses, each with
 guided lessons and challenges checked against a goal shape: the basics, "Design your robot arm"
-(printable parts joined with M3 screws), and "Elf furniture" (dollhouse table, chair, bookshelf, bed).
+(printable parts, then an assembly with joints you can drive, like Fusion's Joint and Drive Joints),
+and "Elf furniture" (dollhouse table, chair, bookshelf, bed).
 Parts export to STL.
 
 Static site, no build step. The geometry is real B-rep CAD (OpenCascade through

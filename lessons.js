@@ -34,6 +34,9 @@ const drew = (kind, p = {}) => s => (s.draft || []).some(x => x.kind === kind &&
 const drewMany = (kind, n) => s => (s.draft || []).filter(x => x.kind === kind).length >= n;
 const made = (type, n) => s => s.mode === 'model' && s.features.slice(s.startCount).filter(f => f.type === type).length >= n;
 const matches = s => s.match;
+// Assembly checks look at the committed joints: which parts they connect and how.
+const partsOf = (s, j) => [j.moving, j.fixed].map(p => s.asm.components.find(c => c.id === p?.comp)?.part).sort().join('+');
+const joined = (a, b, type = 'revolute') => s => !!s.asm?.joints.some(j => j.type === type && partsOf(s, j) === [a, b].sort().join('+'));
 
 export const LESSONS = [
   {
@@ -126,6 +129,28 @@ export const LESSONS = [
       { type: 'fillet', id: 'f1', edges: [edge(-14, 0, 2.5)], r: 2 },
     ],
     steps: [drew('poly'), made('extrude', 1), made('hole', 1), matches],
+  },
+  {
+    // Assembly lessons load other lessons' goals as components. The first one is grounded.
+    id: 'robot-joint',
+    course: 'robot',
+    assembly: [
+      { id: 'base', part: 'robot-base', grounded: true },
+      { id: 'link', part: 'robot-link', at: [0, -60, 0] },
+    ],
+    steps: [opened('joint'), s => s.picked >= 1, s => s.picked >= 2, s => s.asm.joints.length >= 1,
+      s => !s.dialog && joined('robot-base', 'robot-link')(s) && s.asm.joints.some(j => j.angle)],
+  },
+  {
+    id: 'robot-assembly',
+    course: 'robot',
+    assembly: [
+      { id: 'base', part: 'robot-base', grounded: true },
+      { id: 'link1', part: 'robot-link', at: [0, -60, 0] },
+      { id: 'link2', part: 'robot-link', at: [0, -90, 0] },
+      { id: 'finger', part: 'robot-finger', at: [0, -125, 0] },
+    ],
+    steps: [joined('robot-base', 'robot-link'), joined('robot-link', 'robot-link'), joined('robot-finger', 'robot-link'), s => s.driven],
   },
   {
     id: 'elf-table',

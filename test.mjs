@@ -5,6 +5,8 @@ import * as cad from './cad.js';
 import { readFileSync } from 'node:fs';
 import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
 import { LANGS } from './i18n.js';
+import { poses } from './assembly.js';
+import { Vector3 } from './vendor/three.module.js';
 
 await cad.init(fileURLToPath(new URL('./vendor/replicad_single.wasm', import.meta.url)));
 const PI = Math.PI;
@@ -35,6 +37,10 @@ const expected = {
 
 for (const l of [...LESSONS, ...CHALLENGES]) {
   assert.ok(COURSES.includes(l.course), `${l.id}: unknown course`);
+  if (l.assembly) { // components are other lessons' parts
+    for (const c of l.assembly) assert.ok(LESSONS.find(x => x.id === c.part)?.goal, `${l.id}: part ${c.part}`);
+    continue;
+  }
   const r = cad.rebuild(l.goal);
   assert.deepEqual(r.errors, {}, `${l.id} goal has errors`);
   near(vol(l.goal), expected[l.id]);
@@ -66,6 +72,26 @@ const m = cad.metrics(cad.rebuild(side).body);
 assert.ok(Math.abs(m.min[1] + 14) < 0.1, 'side extrude should grow toward -Y');
 
 assert.ok((await cad.stlOf(cad.rebuild(LESSONS[0].goal).body).arrayBuffer()).byteLength > 84);
+// Assembly: a revolute joint puts the link's hole on the base pivot, faces touching, turning about the hole.
+const rimsOf = id => { const b = cad.rebuild([...LESSONS, ...CHALLENGES].find(l => l.id === id).goal).body; return b.edges.map(e => cad.rimRef(b, e.hashCode)).filter(Boolean); };
+const linkRim = rimsOf('robot-link').find(r => r.c[0] === -24 && r.n[2] === 1);
+const pivot = rimsOf('robot-base').find(r => r.c[0] === 4);
+assert.deepEqual([linkRim.c, pivot.c, pivot.n], [[-24, 0, 6], [4, 0, 24], [-1, 0, 0]]);
+const comps = [{ id: 'base', grounded: true }, { id: 'link' }];
+const near3 = (v, w, msg) => assert.ok(v.distanceTo(new Vector3(...w)) < 1e-9, `${msg}: ${v.toArray()}`);
+const tips = [0, 90].map(angle => {
+  const { T, errors } = poses(comps, [{ id: 'j', type: 'revolute', angle, moving: { comp: 'link', rim: linkRim }, fixed: { comp: 'base', rim: pivot } }]);
+  assert.deepEqual(errors, {});
+  near3(new Vector3(...linkRim.c).applyMatrix4(T.get('link')), [4, 0, 24], 'hole centers meet');
+  near3(new Vector3(...linkRim.n).transformDirection(T.get('link')), [1, 0, 0], 'faces touch');
+  return new Vector3(24, 0, 3).applyMatrix4(T.get('link'));
+});
+assert.ok(Math.abs(tips[0].distanceTo(tips[1]) - 48 * Math.SQRT2) < 1e-9, 'other end swings 90° around the pivot');
+near3(tips[0], [1, 0, 24 + 48], 'at 0° the link stands straight up');
+assert.equal(poses(comps, [{ id: 'j', moving: { comp: 'base', rim: pivot }, fixed: { comp: 'base', rim: pivot } }]).errors.j, 'err.jointSamePart');
+const twice = [1, 2].map(i => ({ id: 'j' + i, angle: 0, moving: { comp: 'link', rim: linkRim }, fixed: { comp: 'base', rim: pivot } }));
+assert.deepEqual(poses(comps, twice).errors, { j2: 'err.jointPlaced' });
+
 // i18n: every language has every English key, with the same shape and placeholders.
 const { en } = LANGS;
 const holes = v => JSON.stringify([...String(v).matchAll(/\{\w+\}/g)].map(m => m[0]).sort());
@@ -80,5 +106,6 @@ for (const [code, d] of Object.entries(LANGS)) {
 for (const l of LESSONS) assert.equal(en[`lesson.${l.id}.steps`].length, l.steps.length, `${l.id}: one text per step`);
 for (const c of CHALLENGES) assert.ok(en[`challenge.${c.id}.brief`], `${c.id}: brief`);
 for (const c of COURSES) assert.ok(en[`course.${c}.title`], `course ${c}: title`);
-for (const [k] of readFileSync(new URL('./cad.js', import.meta.url), 'utf8').matchAll(/err\.\w+/g)) assert.ok(k in en, `missing ${k}`);
+for (const file of ['./cad.js', './assembly.js'])
+  for (const [k] of readFileSync(new URL(file, import.meta.url), 'utf8').matchAll(/err\.\w+/g)) assert.ok(k in en, `missing ${k}`);
 console.log('ok');

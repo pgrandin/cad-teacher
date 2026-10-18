@@ -146,3 +146,19 @@ export const meshOf = body => ({
 });
 
 export const stlOf = body => body.blobSTL({ binary: true });
+
+// A hole rim for joints: a circular edge on a flat face. Returns its center and the face's outward
+// normal (part coordinates), or null when the edge is not a rim.
+export function rimRef(body, edgeId) {
+  const e = body.edges.find(e => e.hashCode === edgeId);
+  if (!e || e.geomType !== 'CIRCLE') return null;
+  const face = body.faces.find(f => f.geomType === 'PLANE' && f.edges.some(x => x.isSame(e)));
+  if (!face) return null;
+  // Circle center from three points on it.
+  const [a, b, c] = [0, 1 / 3, 2 / 3].map(t => e.pointAt(t).toTuple());
+  const ab = add(b, a, -1), ac = add(c, a, -1), n = cross(ab, ac);
+  const k = 1 / (2 * dot(n, n));
+  const p = add(cross(n, ab).map(x => x * dot(ac, ac) * k), cross(ac, n).map(x => x * dot(ab, ab) * k));
+  const r6 = x => Math.round(x * 1e6) / 1e6 + 0; // + 0 turns -0 into 0
+  return { c: add(a, p).map(r6), n: face.normalAt().toTuple().map(r6) };
+}

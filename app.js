@@ -8,6 +8,7 @@ import { LineMaterial } from './vendor/LineMaterial.js';
 import * as cad from './cad.js';
 import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
 import { t, tn, lang, setLang, LANGS } from './i18n.js';
+import { poses } from './assembly.js';
 
 const $ = s => document.querySelector(s);
 const V = a => new THREE.Vector3(...a);
@@ -20,6 +21,8 @@ let sketch = null;             // sketch mode: { index, feature, plane, before, 
 let cmd = null;                // open command: { index, feature, before, preview, sel: Map(edgeId -> edge ref) }
 let pickingPlane = false;      // Create Sketch is waiting for a plane or face click
 let lesson = null;             // { def, challenge, steps, step, startCount, goal, mine, match }
+let asm = null;                // assembly lesson: { components, joints, objs, driven }
+let acmd = null;               // open assembly command: { kind: 'joint', index, joint } or { kind: 'drive', angles }
 let hover = null;
 let showGoal = true;
 const undoStack = [];
@@ -229,6 +232,7 @@ function drawHighlights() {
 }
 
 // ---------- camera ----------
+const fitBox = b => ({ c: b.getCenter(new THREE.Vector3()).toArray(), r: Math.max(b.getSize(new THREE.Vector3()).length() / 2, 25) });
 function fitView(body) {
   const [min, max] = body ? body.boundingBox.bounds : [[-30, -30, 0], [30, 30, 20]];
   const c = min.map((v, i) => (v + max[i]) / 2);
@@ -236,7 +240,7 @@ function fitView(body) {
   return { c, r };
 }
 function home() {
-  const { c, r } = fitView(built.body);
+  const { c, r } = asm ? fitBox(new THREE.Box3().setFromObject(asmGroup)) : fitView(built.body);
   camera.up.set(0, 0, 1);
   controls.target.set(...c);
   camera.position.copy(V(c)).addScaledVector(new THREE.Vector3(1, -1.3, 1).normalize(), r * 3.6);
@@ -262,7 +266,7 @@ $('#home').onclick = () => (sketch ? lookAtPlane(sketch.plane) : home());
 // ---------- timeline actions ----------
 // Timeline names like Fusion: Sketch1, Extrude2... in the current language.
 const nameAt = (i, type) => t(`feature.${type}`) + (features.slice(0, i).filter(f => f.type === type).length + 1);
-const pushUndo = () => { undoStack.push(structuredClone(features)); if (undoStack.length > 50) undoStack.shift(); };
+const pushUndo = () => { undoStack.push(structuredClone(asm ? asm.joints : features)); if (undoStack.length > 50) undoStack.shift(); };
 
 function rebuildAll() {
   built = cad.rebuild(features);
@@ -275,10 +279,11 @@ function rebuildAll() {
 
 function undoLast() {
   if (!undoStack.length) return;
-  sketch = cmd = null;
+  sketch = cmd = acmd = null;
   pickingPlane = false;
   sketchControls(false);
-  features = undoStack.pop();
+  if (asm) asm.joints = undoStack.pop();
+  else features = undoStack.pop();
   rebuildAll();
 }
 
@@ -366,6 +371,7 @@ function exportSTL() {
 }
 
 function act(id, fromKey = false) {
+  if (asm) return asmAct(id);
   if (sketch) {
     if (id === 'finish') return finishSketch();
     sketch.tool = sketch.tool === id && !fromKey ? null : id;
@@ -387,7 +393,7 @@ function escape() {
     else sketch.tool = null;
     sketchControls(true);
   } else {
-    cmd = null;
+    cmd = acmd = null;
     pickingPlane = false;
   }
   refresh();
@@ -500,7 +506,7 @@ canvas.addEventListener('pointerup', e => {
   if (sketch?.tool) {
     // Drag-to-draw: releasing away from the first corner/center finishes the shape.
     if (moved && sketch.pts.length === 1 && sketch.tool !== 'line') { sketchCursor(e); sketchClick(); }
-  } else if (!moved && !sketch) modelClick(e);
+  } else if (!moved && !sketch) (asm ? asmClick(e) : modelClick(e));
 });
 canvas.addEventListener('pointermove', e => {
   if (sketch) {
@@ -510,11 +516,11 @@ canvas.addEventListener('pointermove', e => {
     draw();
     return;
   }
-  const h = pick(e);
+  const h = asm ? (acmd?.kind === 'joint' ? pickRim(e) : null) : pick(e);
   canvas.style.cursor = h ? 'pointer' : '';
-  if (h?.kind !== hover?.kind || h?.id !== hover?.id) {
+  if (h?.kind !== hover?.kind || h?.id !== hover?.id || h?.comp !== hover?.comp) {
     hover = h;
-    drawHighlights();
+    asm ? drawAssembly() : drawHighlights();
     draw();
   }
 });
@@ -523,6 +529,7 @@ canvas.addEventListener('pointerleave', () => { $('#readout').hidden = true; });
 addEventListener('keydown', e => {
   if (e.target.closest?.('input, select')) {
     if (e.key === 'Enter' && cmd) commitCommand();
+    if (e.key === 'Enter' && acmd) commitAsm();
     if (e.key === 'Escape') e.target.blur();
     return;
   }
@@ -530,7 +537,7 @@ addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); return undoLast(); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   // Same shortcuts as Fusion 360.
-  const id = (sketch ? { l: 'line', r: 'rect', c: 'circle' } : { e: 'extrude', h: 'hole', f: 'fillet' })[e.key.toLowerCase()];
+  const id = (asm ? { j: 'joint' } : sketch ? { l: 'line', r: 'rect', c: 'circle' } : { e: 'extrude', h: 'hole', f: 'fillet' })[e.key.toLowerCase()];
   const b = id && document.querySelector(`[data-tool="${id}"]`);
   if (b && !b.disabled) act(id, true);
 });
@@ -549,6 +556,8 @@ const ICON = {
   finish: svg('<path d="M4 12.5l5 5L20 6"/>'),
   undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'),
   stl: svg('<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>'),
+  joint: svg('<circle cx="7" cy="12" r="4"/><circle cx="17" cy="12" r="4"/><circle cx="7" cy="12" r="1" fill="currentColor"/><path d="M11 12h2"/>'),
+  drive: svg('<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M17 2v4h-4"/><circle cx="12" cy="12" r="2"/>'),
 };
 
 const toolBtn = (id, { on = false, disabled = false, key = '' } = {}) =>
@@ -557,6 +566,13 @@ const group = (id, items) => `<div class="group"><div class="row">${items.join('
 
 function renderToolbar() {
   $('#tab').textContent = t(sketch ? 'tab.sketch' : 'tab.solid');
+  if (asm) {
+    $('#tools').innerHTML = group('assemble', [
+      toolBtn('joint', { on: acmd?.kind === 'joint', key: 'J' }),
+      toolBtn('drive', { on: acmd?.kind === 'drive', disabled: !asm.joints.some(j => j.type === 'revolute') }),
+    ]) + group('file', [toolBtn('undo', { disabled: !undoStack.length, key: 'Ctrl+Z' })]);
+    return;
+  }
   const type = cmd?.feature.type, body = !!built.body;
   $('#tools').innerHTML = sketch
     ? group('create', [
@@ -594,7 +610,8 @@ const SHAPE_FIELDS = {
 
 function renderDialog() {
   const el = $('#dialog');
-  el.hidden = !sketch && !cmd;
+  el.hidden = !sketch && !cmd && !acmd;
+  if (acmd) return renderAsmDialog(el);
   if (sketch) {
     const rows = sketch.feature.shapes.map((s, i) =>
       `<fieldset data-i="${i}"${i === sketch.sel ? ' class="sel"' : ''}><legend>${t(`shape.${s.kind}`)} ${i + 1}<button data-act="del-shape" data-i="${i}" title="${t('dlg.delete')}">✕</button></legend>` +
@@ -627,6 +644,7 @@ function renderDialog() {
   updateCmdError();
 }
 function updateCmdError() {
+  if (acmd) return updateAsmError();
   if (!cmd) return;
   const err = cmd.preview.errors[cmd.feature.id];
   $('#cmderr').textContent = err ? t(err) : '';
@@ -634,6 +652,7 @@ function updateCmdError() {
 }
 
 $('#dialog').addEventListener('input', e => {
+  if (acmd) return asmInput(e.target);
   const el = e.target, k = el.dataset.k;
   if (!k) return;
   const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value.replace(',', '.'));
@@ -660,6 +679,7 @@ $('#dialog').addEventListener('focusin', e => {
 $('#dialog').addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   const a = b?.dataset.act;
+  if (acmd) return a && asmDialogAct(a);
   if (a === 'finish') finishSketch();
   else if (a === 'del-shape') { sketch.feature.shapes.splice(+b.dataset.i, 1); sketch.sel = -1; refresh(); }
   else if (a === 'ok') commitCommand();
@@ -668,6 +688,7 @@ $('#dialog').addEventListener('click', e => {
 });
 
 function renderTimeline() {
+  if (asm) return renderJointTimeline();
   const active = sketch?.index ?? cmd?.index ?? -1;
   $('#chips').innerHTML = features.map((f, i) => {
     const err = built.errors[f.id], name = nameAt(i, f.type);
@@ -679,10 +700,13 @@ $('#chips').addEventListener('click', e => {
   const b = e.target.closest('.chip');
   if (!b) return;
   if (sketch) return flash(t('timeline.finishFirst'));
+  if (asm) return editJoint(+b.dataset.i);
   editFeature(+b.dataset.i);
 });
 
 function hintText() {
+  if (acmd) return t(acmd.kind === 'drive' ? 'hint.drive' : `hint.joint${[acmd.joint.moving, acmd.joint.fixed].filter(Boolean).length}`);
+  if (asm) return t('hint.assembly');
   if (pickingPlane) return t('hint.plane');
   if (sketch) return t(sketch.tool ? `hint.${sketch.tool}${sketch.pts.length ? 1 : 0}` : 'hint.sketch');
   return t(cmd ? `hint.${cmd.feature.type}` : 'hint.model');
@@ -706,17 +730,18 @@ const doneIds = () => { try { return JSON.parse(localStorage.getItem(DONE_KEY)) 
 const markDone = id => { try { localStorage.setItem(DONE_KEY, JSON.stringify([...new Set([...doneIds(), id])])); } catch { /* private mode */ } };
 
 function openLesson(def, challenge) {
-  sketch = cmd = null;
+  sketch = cmd = acmd = null;
   pickingPlane = false;
   sketchControls(false);
   undoStack.length = 0;
   features = structuredClone(def.start || []);
-  const goalBody = cad.rebuild(def.goal).body;
   clear(goalGroup);
-  goalGroup.add(fat(cad.meshOf(goalBody).edges.lines, M.goal));
+  setAssembly(def.assembly);
+  const goalBody = def.goal && cad.rebuild(def.goal).body;
+  if (goalBody) goalGroup.add(fat(cad.meshOf(goalBody).edges.lines, M.goal));
   goalGroup.visible = showGoal;
   const steps = def.steps || [s => s.match];
-  lesson = { def, challenge, steps, step: 0, startCount: features.length, goal: cad.metrics(goalBody) };
+  lesson = { def, challenge, steps, step: 0, startCount: features.length, goal: goalBody && cad.metrics(goalBody) };
   rebuildAll();
   renderLearn();
   home();
@@ -726,7 +751,8 @@ function checkLesson() {
   if (!lesson) return;
   const s = {
     features, mode: sketch ? 'sketch' : 'model', draft: sketch?.feature.shapes, sketchOnFace: !!sketch?.feature.plane.face,
-    dialog: cmd?.feature.type, selected: cmd?.sel?.size || 0, holeFace: !!cmd?.feature.face, match: lesson.match, startCount: lesson.startCount,
+    dialog: acmd?.kind ?? cmd?.feature.type, selected: cmd?.sel?.size || 0, holeFace: !!cmd?.feature.face, match: lesson.match, startCount: lesson.startCount,
+    asm, picked: acmd?.kind === 'joint' ? [acmd.joint.moving, acmd.joint.fixed].filter(Boolean).length : 0, driven: !!asm?.driven,
   };
   const before = lesson.step;
   while (lesson.step < lesson.steps.length && lesson.steps[lesson.step](s)) lesson.step++;
@@ -764,7 +790,7 @@ function renderLearn() {
       : `<h2>${lt(lesson, 'title')}</h2><p>${lt(lesson, 'intro')}</p>
         <ol class="steps">${lt(lesson, 'steps').map((text, i) => `<li class="${i < step ? 'done' : i === step ? 'now' : ''}">${text}</li>`).join('')}</ol>`}
     ${won ? `<div class="win"><b>${t('learn.win')}</b>${challenge ? '' : `<p>${lt(lesson, 'outro')}</p>`}${next ? `<button class="btn" data-act="next">${t('learn.next', { title: lt(next, 'title') })}</button>` : ''}</div>` : ''}
-    <label class="check"><input type="checkbox" data-act="goal"${showGoal ? ' checked' : ''}> ${t('learn.showGoal')}</label>
+    ${lesson.goal ? `<label class="check"><input type="checkbox" data-act="goal"${showGoal ? ' checked' : ''}> ${t('learn.showGoal')}</label>` : ''}
     <button class="btn" data-act="restart">${t('learn.restart')}</button>`;
 }
 $('#learn').addEventListener('click', e => {
@@ -775,7 +801,7 @@ $('#learn').addEventListener('click', e => {
     return openLesson(x.def, x.challenge);
   }
   const a = el.dataset.act;
-  if (a === 'back') { lesson = null; clear(goalGroup); renderLearn(); draw(); }
+  if (a === 'back') { lesson = acmd = null; clear(goalGroup); setAssembly(null); renderLearn(); refresh(); }
   else if (a === 'next') { const x = ALL[ALL.findIndex(x => x.def === lesson.def) + 1]; openLesson(x.def, x.challenge); }
   else if (a === 'restart') openLesson(lesson.def, lesson.challenge);
 });
@@ -784,6 +810,190 @@ $('#learn').addEventListener('change', e => {
   showGoal = goalGroup.visible = e.target.checked;
   draw();
 });
+
+// ---------- assembly ----------
+// Components are other lessons' finished parts. Joints snap hole rims together (see assembly.js).
+const asmGroup = new THREE.Group();
+scene.add(asmGroup);
+const compMats = [0xb9c4cc, 0xf0a04b, 0x7cc47f, 0xb48ae0, 0x6fb7e9].map(color =>
+  new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+const parts = new Map(); // part id -> { body, objs, rims }, built once per session
+function partOf(id) {
+  if (!parts.has(id)) {
+    const body = cad.rebuild(LESSONS.find(l => l.id === id).goal).body;
+    parts.set(id, { body, objs: bodyObjects(body), rims: new Map() });
+  }
+  return parts.get(id);
+}
+function rimOf(part, edgeId) {
+  const p = partOf(part);
+  if (!p.rims.has(edgeId)) p.rims.set(edgeId, cad.rimRef(p.body, edgeId));
+  return p.rims.get(edgeId);
+}
+
+function setAssembly(comps) {
+  clear(asmGroup);
+  asm = comps && { components: structuredClone(comps), joints: [], driven: false };
+  if (!asm) return;
+  asm.objs = asm.components.map((c, i) => {
+    const p = partOf(c.part), g = new THREE.Group();
+    const mesh = new THREE.Mesh(p.objs.mesh.geometry, compMats[i % compMats.length]);
+    const lines = new THREE.LineSegments(p.objs.lines.geometry, M.edge);
+    mesh.userData.keep = lines.userData.keep = true; // shared part geometry
+    g.matrixAutoUpdate = false;
+    g.userData.comp = c;
+    g.add(mesh, lines, new THREE.Group());
+    asmGroup.add(g);
+    return g;
+  });
+}
+
+// Two copies of the same part get numbered: "Arm link 1", "Arm link 2".
+function compName(id) {
+  const c = asm.components.find(c => c.id === id), same = asm.components.filter(x => x.part === c.part);
+  return t(`lesson.${c.part}.title`) + (same.length > 1 ? ` ${same.indexOf(c) + 1}` : '');
+}
+const jointName = i => t('feature.joint') + (i + 1);
+
+// Joints as shown right now: the committed ones, plus the joint being edited or the angles being driven.
+function shownJoints() {
+  if (acmd?.kind === 'drive') return asm.joints.map(j => ({ ...j, angle: acmd.angles[j.id] ?? j.angle }));
+  const js = [...asm.joints];
+  if (acmd?.kind === 'joint') js.splice(acmd.index, acmd.index < asm.joints.length ? 1 : 0, acmd.joint);
+  return js;
+}
+
+function drawAssembly() {
+  const { T, errors } = poses(asm.components, shownJoints());
+  asm.errors = errors;
+  for (const g of asm.objs) {
+    g.matrix.copy(T.get(g.userData.comp.id));
+    g.matrixWorldNeedsUpdate = true;
+    clear(g.children[2]);
+  }
+  const mark = (pick, mat) => {
+    if (!pick) return;
+    const g = asm.objs.find(g => g.userData.comp.id === pick.comp), m = partOf(g.userData.comp.part).objs.m;
+    const grp = m.edges.edgeGroups.find(x => x.edgeId === pick.edge);
+    if (grp) g.children[2].add(fat(m.edges.lines.slice(grp.start * 3, (grp.start + grp.count) * 3), mat));
+  };
+  if (acmd?.kind === 'joint') { mark(acmd.joint.moving, M.selEdge); mark(acmd.joint.fixed, M.selEdge); }
+  mark(hover, M.hoverEdge);
+  $('#parts').hidden = false;
+  $('#parts').innerHTML = `<b>${t('asm.components')}</b>` + asm.components.map((c, i) =>
+    `<div><i style="background:#${compMats[i % compMats.length].color.getHexString()}"></i>${compName(c.id)}${c.grounded ? ` <span title="${t('asm.grounded')}">📌</span>` : ''}</div>`).join('');
+}
+
+// The rim (circular edge on a flat face) under the cursor, on any component.
+function pickRim(e) {
+  setRay(e);
+  scene.updateMatrixWorld();
+  const tol = (ray.params.Line.threshold = camera.position.distanceTo(controls.target) * 0.01);
+  const meshHit = ray.intersectObjects(asm.objs.map(g => g.children[0]), false)[0];
+  const hits = ray.intersectObjects(asm.objs.map(g => g.children[1]), false)
+    .filter(h => !meshHit || h.distance <= meshHit.distance + tol)
+    .sort((a, b) => ray.ray.distanceSqToPoint(a.point) - ray.ray.distanceSqToPoint(b.point));
+  for (const h of hits) {
+    const comp = h.object.parent.userData.comp, m = partOf(comp.part).objs.m;
+    const grp = m.edges.edgeGroups.find(x => h.index >= x.start && h.index < x.start + x.count);
+    const rim = grp && rimOf(comp.part, grp.edgeId);
+    if (rim) return { kind: 'rim', id: grp.edgeId, comp: comp.id, edge: grp.edgeId, rim };
+  }
+  return null;
+}
+
+function asmClick(e) {
+  if (acmd?.kind !== 'joint') return;
+  const h = pickRim(e);
+  if (!h) return;
+  const j = acmd.joint, pickRec = { comp: h.comp, edge: h.edge, rim: h.rim };
+  // First pick = the part that moves (like Fusion). Clicking that part again re-picks it.
+  if (!j.moving || h.comp === j.moving.comp) j.moving = pickRec;
+  else j.fixed = pickRec;
+  refresh();
+}
+
+function asmAct(id) {
+  if (id === 'undo') return undoLast();
+  hover = null;
+  if (id === 'joint') acmd = { kind: 'joint', index: asm.joints.length, joint: { id: 'j' + ++uid, type: 'rigid', angle: 0, moving: null, fixed: null } };
+  if (id === 'drive') acmd = { kind: 'drive', angles: {} };
+  refresh();
+}
+function editJoint(i) {
+  acmd = { kind: 'joint', index: i, joint: structuredClone(asm.joints[i]) };
+  refresh();
+}
+
+function commitAsm() {
+  if (acmd.kind === 'joint') {
+    if (asm.errors[acmd.joint.id]) return;
+    pushUndo();
+    asm.joints.splice(acmd.index, acmd.index < asm.joints.length ? 1 : 0, acmd.joint);
+  } else {
+    pushUndo();
+    asm.joints = shownJoints();
+  }
+  acmd = null;
+  refresh();
+}
+function asmDialogAct(a) {
+  if (a === 'ok') return commitAsm();
+  if (a === 'delete') { pushUndo(); asm.joints.splice(acmd.index, 1); }
+  acmd = null;
+  refresh();
+}
+
+const slider = (value, attrs) => `<input type="range" class="slider" min="-180" max="180" step="1" value="${value}" ${attrs}>`;
+function renderAsmDialog(el) {
+  let body;
+  if (acmd.kind === 'drive') {
+    const rev = asm.joints.map((j, i) => [j, i]).filter(([j]) => j.type === 'revolute');
+    body = rev.map(([j, i]) => `<label>${jointName(i)} · ${compName(j.moving.comp)}</label>${slider(acmd.angles[j.id] ?? j.angle, `data-j="${j.id}"`)}`).join('');
+  } else {
+    const j = acmd.joint, who = p => (p ? `${compName(p.comp)} ✓` : `<i>${t('joint.pick')}</i>`);
+    body = `<p class="note">1. ${t('joint.moving')}: ${who(j.moving)}<br>2. ${t('joint.fixed')}: ${who(j.fixed)}</p>` +
+      select('joint.type', 'type', j.type, [['rigid', t('joint.rigid')], ['revolute', t('joint.revolute')]]) +
+      num('joint.angle', j.angle, 'data-k="angle"') + slider(j.angle, 'data-k="angle"');
+  }
+  const isNew = acmd.kind === 'drive' || acmd.index === asm.joints.length;
+  const title = acmd.kind === 'drive' ? t('tool.drive').toLocaleUpperCase(lang) : `${t('feature.joint').toLocaleUpperCase(lang)}<small>${jointName(acmd.index)}</small>`;
+  el.innerHTML = `<div class="dh">${title}</div>
+    <div class="db">${body}<p class="err" id="cmderr"></p></div>
+    <div class="df">${isNew ? '' : `<button data-act="delete" class="danger">${t('dlg.delete')}</button>`}<span></span><button data-act="cancel">${t('dlg.cancel')}</button><button data-act="ok" class="ok" id="okbtn">${t('dlg.ok')}</button></div>`;
+  updateAsmError();
+}
+function updateAsmError() {
+  const err = acmd.kind === 'joint' && asm.errors?.[acmd.joint.id];
+  $('#cmderr').textContent = err && err !== 'err.jointPick' ? t(err) : ''; // still picking: the note says what to do
+  $('#okbtn').disabled = !!err;
+}
+function asmInput(el) {
+  const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value.replace(',', '.'));
+  if (Number.isNaN(v)) return;
+  if (el.dataset.j) {
+    acmd.angles[el.dataset.j] = v;
+    asm.driven = true;
+  } else {
+    acmd.joint[el.dataset.k] = v;
+    // Keep the angle box and its slider in step.
+    if (el.dataset.k === 'angle') $('#dialog').querySelectorAll('[data-k="angle"]').forEach(x => { if (x !== el) x.value = x.type === 'range' ? v : showNum(v); });
+  }
+  drawAssembly();
+  renderHint();
+  updateAsmError();
+  checkLesson();
+  draw();
+}
+
+function renderJointTimeline() {
+  const active = acmd?.kind === 'joint' ? acmd.index : -1;
+  $('#chips').innerHTML = asm.joints.map((j, i) => {
+    const err = asm.errors?.[j.id], name = jointName(i);
+    const cls = ['chip', err && 'err', i === active && 'on'].filter(Boolean).join(' ');
+    return `<button class="${cls}" data-i="${i}" title="${name}: ${compName(j.moving.comp)} → ${compName(j.fixed.comp)}${err ? ' · ' + t(err) : ''} (${t('timeline.edit')})">${ICON.joint}<span>${name}</span></button>`;
+  }).join('') || `<span class="empty">${t('timeline.empty')}</span>`;
+}
 
 // ---------- refresh ----------
 function refresh(full = true) {
@@ -795,6 +1005,8 @@ function refresh(full = true) {
   if (!sketch?.tool) $('#readout').hidden = true;
   drawSketches();
   drawHighlights();
+  if (asm) drawAssembly();
+  else $('#parts').hidden = true;
   renderToolbar();
   renderTimeline();
   renderHint();
