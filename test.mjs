@@ -65,6 +65,23 @@ assert.ok(cad.sameShape(cad.metrics(cad.rebuild(edited).body), goal), 'edited ti
 const chair = LESSONS.find(l => l.id === 'elf-chair').goal;
 assert.ok(!cad.sameShape(cad.metrics(cad.rebuild(chair.slice(0, -1)).body), cad.metrics(cad.rebuild(chair).body)), 'chair without fillets');
 
+// Differences: a block 2 mm too short misses 1600 mm³; a misplaced hole shows up on both sides.
+const goalBlock = cad.rebuild(LESSONS[0].goal).body;
+const short = cad.rebuild([LESSONS[0].goal[0], { ...LESSONS[0].goal[1], distance: 8 }]).body;
+let d = cad.diff(short, goalBlock);
+near(cad.metrics(d.missing).volume, 1600);
+assert.equal(d.extra, null);
+const holeGoal = cad.rebuild(LESSONS.find(l => l.id === 'hole').goal).body;
+const holeMoved = cad.rebuild(LESSONS.find(l => l.id === 'hole').goal.map(f => (f.type === 'hole' ? { ...f, x: 10 } : f))).body;
+d = cad.diff(holeMoved, holeGoal);
+near(cad.metrics(d.missing).volume, PI * 16 * 10);
+near(cad.metrics(d.extra).volume, PI * 16 * 10);
+assert.deepEqual(cad.diff(goalBlock, goalBlock), { missing: null, extra: null });
+assert.ok(cad.sameShape(cad.metrics(holeMoved), cad.metrics(holeGoal)), 'size+volume alone cannot see a moved hole');
+assert.ok(!cad.matches(holeMoved, holeGoal), 'a moved hole must not match');
+assert.ok(cad.matches(holeGoal, holeGoal));
+near(cad.metrics(goalBlock).volume, 8000); // inputs survive
+
 // A fillet that is too big fails cleanly instead of crashing, with a translatable error.
 const bad = [...LESSONS[0].goal, { type: 'fillet', id: 'x', edges: LESSONS[1].goal[2].edges, r: 50 }];
 assert.equal(cad.rebuild(bad).errors.x, 'err.filletFailed');

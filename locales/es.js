@@ -112,6 +112,10 @@ export default {
   'learn.win': '🎉 ¡Muy bien! Tu pieza coincide.',
   'learn.next': 'Siguiente: {title} →',
   'learn.showGoal': 'Mostrar la forma objetivo (líneas naranjas)',
+  'learn.showDiff': 'Mostrar diferencias',
+  'learn.diffMissing': 'falta (añádelo)',
+  'learn.diffExtra': 'sobra (quítalo)',
+  'learn.diffNone': 'Sin diferencias: tu pieza coincide con el objetivo.',
   'learn.restart': 'Empezar de nuevo',
 
   'lesson.block.title': 'Tu primer bloque',

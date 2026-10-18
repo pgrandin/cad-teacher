@@ -181,6 +181,20 @@ export function sameShape(a, b) {
     [0, 1, 2].every(i => Math.abs(a.min[i] - b.min[i]) < 0.1 && Math.abs(a.max[i] - b.max[i]) < 0.1);
 }
 
+// What separates a part from its goal: material the goal has and the part lacks (missing), and the
+// reverse (extra). Works on copies, since booleans consume their inputs. Rounding slivers are ignored.
+export function diff(mine, goal) {
+  const keep = shape => (shape && R.measureVolume(shape) > 0.5 ? shape : null);
+  const cut = (a, b) => { try { return keep(b ? a.clone().cut(b.clone()) : a.clone()); } catch { return null; } };
+  return { missing: cut(goal, mine), extra: mine ? cut(mine, goal) : null };
+}
+
+// A part matches its goal when size and volume agree and nothing is missing or extra. Size and
+// volume alone are fooled by a hole in the wrong place.
+export function matches(mine, goal, d = diff(mine, goal)) {
+  return sameShape(metrics(mine), metrics(goal)) && !d.missing && !d.extra;
+}
+
 export const meshOf = body => ({
   faces: body.mesh({ tolerance: 0.05, angularTolerance: 0.2 }),
   edges: body.meshEdges({ tolerance: 0.05, angularTolerance: 0.2 }),

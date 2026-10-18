@@ -114,6 +114,10 @@ export default {
   'learn.win': '🎉 Nice work! Your part matches.',
   'learn.next': 'Next: {title} →',
   'learn.showGoal': 'Show the goal shape (orange lines)',
+  'learn.showDiff': 'Show differences',
+  'learn.diffMissing': 'missing (add this)',
+  'learn.diffExtra': 'extra (remove this)',
+  'learn.diffNone': 'No differences: your part matches the goal.',
   'learn.restart': 'Start over',
 
   'lesson.block.title': 'Your first block',

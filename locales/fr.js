@@ -112,6 +112,10 @@ export default {
   'learn.win': '🎉 Bravo ! Ta pièce correspond.',
   'learn.next': 'Suivant : {title} →',
   'learn.showGoal': 'Montrer la forme à obtenir (lignes orange)',
+  'learn.showDiff': 'Montrer les différences',
+  'learn.diffMissing': 'manquant (à ajouter)',
+  'learn.diffExtra': 'en trop (à enlever)',
+  'learn.diffNone': 'Aucune différence : ta pièce correspond à l’objectif.',
   'learn.restart': 'Recommencer',
 
   'lesson.block.title': 'Ton premier bloc',

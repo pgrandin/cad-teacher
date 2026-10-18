@@ -26,6 +26,7 @@ let asm = null;                // assembly lesson: { components, joints, objs, d
 let acmd = null;               // open assembly command: { kind: 'joint', index, joint } or { kind: 'drive', angles }
 let hover = null;
 let showGoal = true;
+let showDiff = false;           // color what is missing (green) / extra (red) compared to the goal
 const undoStack = [];
 let uid = 0;
 
@@ -71,6 +72,9 @@ const M = {
   sketchSel: fatMat(0xe65100, 3),
   draft: fatMat(0x42a5f5, 2),
   goal: fatMat(0xff8a00, 2, 0.6),
+  // Differences show through the part (depthTest off), so a misplaced hole reads as red + green.
+  missing: new THREE.MeshBasicMaterial({ color: 0x2ecc71, transparent: true, opacity: 0.55, depthTest: false, side: THREE.DoubleSide }),
+  extra: new THREE.MeshBasicMaterial({ color: 0xe74c3c, transparent: true, opacity: 0.55, depthTest: false, side: THREE.DoubleSide }),
 };
 const fat = (positions, mat) => {
   const l = new LineSegments2(new LineSegmentsGeometry().setPositions(positions), mat);
@@ -78,8 +82,8 @@ const fat = (positions, mat) => {
   return l;
 };
 
-const shownGroup = new THREE.Group(), hlGroup = new THREE.Group(), sketchGroup = new THREE.Group(), goalGroup = new THREE.Group();
-scene.add(shownGroup, hlGroup, sketchGroup, goalGroup);
+const shownGroup = new THREE.Group(), hlGroup = new THREE.Group(), sketchGroup = new THREE.Group(), goalGroup = new THREE.Group(), diffGroup = new THREE.Group();
+scene.add(shownGroup, hlGroup, sketchGroup, goalGroup, diffGroup);
 const clear = g => {
   g.traverse(o => { if (o !== g && !o.userData.keep) o.geometry?.dispose(); });
   g.clear();
@@ -273,9 +277,25 @@ function rebuildAll() {
   built = cad.rebuild(features);
   if (lesson) {
     lesson.mine = cad.metrics(built.body);
-    lesson.match = cad.sameShape(lesson.mine, lesson.goal);
+    lesson.diff = lesson.goalBody && cad.diff(built.body, lesson.goalBody);
+    lesson.match = !!lesson.goalBody && cad.matches(built.body, lesson.goalBody, lesson.diff);
   }
+  drawDiff();
   refresh();
+}
+
+function drawDiff() {
+  clear(diffGroup);
+  for (const kind of showDiff ? ['missing', 'extra'] : []) {
+    const shape = lesson?.diff?.[kind];
+    if (!shape) continue;
+    const o = bodyObjects(shape);
+    o.lines.geometry.dispose();
+    o.mesh.material = M[kind];
+    o.mesh.renderOrder = 5;
+    diffGroup.add(o.mesh);
+  }
+  if (lesson?.goalBody) renderLearn();
 }
 
 function undoLast() {
@@ -776,7 +796,7 @@ function openLesson(def, challenge, fresh = false) {
   if (goalBody) goalGroup.add(fat(cad.meshOf(goalBody).edges.lines, M.goal));
   goalGroup.visible = showGoal;
   const steps = def.steps || [s => s.match];
-  lesson = { def, challenge, steps, step: saved?.step || 0, startCount: (def.start || []).length, goal: goalBody && cad.metrics(goalBody) };
+  lesson = { def, challenge, steps, step: saved?.step || 0, startCount: (def.start || []).length, goal: goalBody && cad.metrics(goalBody), goalBody };
   rebuildAll();
   renderLearn();
   home();
@@ -832,7 +852,11 @@ function renderLearn() {
       : `<h2>${lt(lesson, 'title')}</h2><p>${lt(lesson, 'intro')}</p>
         <ol class="steps">${lt(lesson, 'steps').map((text, i) => `<li class="${i < step ? 'done' : i === step ? 'now' : ''}">${text}</li>`).join('')}</ol>`}
     ${won ? `<div class="win"><b>${t('learn.win')}</b>${challenge ? '' : `<p>${lt(lesson, 'outro')}</p>`}${next ? `<button class="btn" data-act="next">${t('learn.next', { title: lt(next, 'title') })}</button>` : ''}</div>` : ''}
-    ${lesson.goal ? `<label class="check"><input type="checkbox" data-act="goal"${showGoal ? ' checked' : ''}> ${t('learn.showGoal')}</label>` : ''}
+    ${lesson.goal ? `<label class="check"><input type="checkbox" data-act="goal"${showGoal ? ' checked' : ''}> ${t('learn.showGoal')}</label>
+      <label class="check"><input type="checkbox" data-act="diff"${showDiff ? ' checked' : ''}> ${t('learn.showDiff')}</label>
+      ${showDiff ? `<p class="tip">${lesson.diff?.missing || lesson.diff?.extra
+        ? `<i class="sw miss"></i>${t('learn.diffMissing')} &nbsp; <i class="sw extra"></i>${t('learn.diffExtra')}`
+        : t('learn.diffNone')}</p>` : ''}` : ''}
     <button class="btn" data-act="restart">${t('learn.restart')}</button>`;
 }
 $('#learn').addEventListener('click', e => {
@@ -851,6 +875,7 @@ $('#learn').addEventListener('click', e => {
     lesson = acmd = null;
     $('#tip').hidden = true;
     clear(goalGroup);
+    clear(diffGroup);
     setAssembly(null);
     renderLearn();
     refresh();
@@ -877,8 +902,8 @@ $('#learn').addEventListener('toggle', e => {
   if (c) e.target.open ? openCourses.add(c) : openCourses.delete(c);
 }, true);
 $('#learn').addEventListener('change', e => {
-  if (e.target.dataset.act !== 'goal') return;
-  showGoal = goalGroup.visible = e.target.checked;
+  if (e.target.dataset.act === 'goal') showGoal = goalGroup.visible = e.target.checked;
+  if (e.target.dataset.act === 'diff') { showDiff = e.target.checked; drawDiff(); }
   draw();
 });
 
@@ -1071,6 +1096,7 @@ function refresh(full = true) {
   setShown(cmd ? cmd.preview.body : sketch ? sketch.before.body : built.body);
   setPicker(cmd ? cmd.before.body : pickingPlane ? built.body : null);
   grid.visible = !sketch;
+  diffGroup.visible = !sketch && !cmd; // differences are about the finished part, not a preview
   originPlanes.forEach(p => (p.visible = pickingPlane));
   canvas.style.cursor = sketch?.tool ? 'crosshair' : '';
   if (!sketch?.tool) $('#readout').hidden = true;

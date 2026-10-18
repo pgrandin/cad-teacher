@@ -112,6 +112,10 @@ export default {
   'learn.win': '🎉 Super! Dein Teil passt.',
   'learn.next': 'Weiter: {title} →',
   'learn.showGoal': 'Zielform zeigen (orange Linien)',
+  'learn.showDiff': 'Unterschiede zeigen',
+  'learn.diffMissing': 'fehlt (hinzufügen)',
+  'learn.diffExtra': 'zu viel (wegnehmen)',
+  'learn.diffNone': 'Keine Unterschiede: Dein Teil passt zum Ziel.',
   'learn.restart': 'Neu anfangen',
 
   'lesson.block.title': 'Dein erster Block',
