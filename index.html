@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAD Teacher</title>
+<link rel="icon" href="data:,">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+<style>
+  :root { --blue: #0696d7; --ink: #262b30; --muted: #6b757d; --bar: #f4f5f6; --line: #d3d7da; --dark: #2b3036; --warn: #d93a2b; --ok: #2e9e4f; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: grid; grid-template-rows: auto 1fr auto; font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bar); overflow: hidden; }
+  button { font: inherit; }
+
+  header { display: flex; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; padding: 0 16px; background: var(--dark); color: #fff; font-weight: 600; }
+  .ribbon { display: flex; flex-direction: column; }
+  #tab { align-self: flex-start; margin: 4px 0 0 12px; font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--blue); border-bottom: 2px solid var(--blue); }
+  #tools { display: flex; padding: 2px 6px 0; }
+  .group { display: flex; flex-direction: column; align-items: center; padding: 0 6px; border-right: 1px solid var(--line); }
+  .group .row { display: flex; gap: 2px; }
+  .glabel { font-size: 10px; letter-spacing: .06em; color: var(--muted); padding: 1px 0 4px; }
+  .tool { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 70px; padding: 5px 2px; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--ink); font-size: 11px; cursor: pointer; }
+  .tool svg { width: 28px; height: 28px; color: #2f6f9c; }
+  .tool:hover:not(:disabled) { background: #e3eef6; border-color: #bcd7ea; }
+  .tool.on { background: #d3e8f7; border-color: var(--blue); }
+  .tool:disabled { opacity: .35; cursor: default; }
+  .tool[data-tool=finish] svg { color: var(--ok); }
+
+  main { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
+  #learn { background: #fff; border-right: 1px solid var(--line); overflow: auto; padding: 14px 16px; }
+  #learn h2 { font-size: 15px; margin: 4px 0 8px; }
+  .menu { list-style: none; padding: 0; margin: 0 0 16px; }
+  .menu button { display: flex; gap: 8px; align-items: center; width: 100%; text-align: left; padding: 8px 10px; margin: 3px 0; border: 1px solid var(--line); border-radius: 4px; background: #fff; cursor: pointer; }
+  .menu button:hover { border-color: var(--blue); background: #f2f8fc; }
+  .menu b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 11px; }
+  .steps { padding-left: 20px; }
+  .steps li { margin: 8px 0; color: var(--muted); }
+  .steps li.done { color: #9aa3aa; text-decoration: line-through; }
+  .steps li.now { color: var(--ink); background: #fff6d6; outline: 6px solid #fff6d6; border-radius: 2px; }
+  .steps li.now::marker { color: #e08a00; font-weight: 700; }
+  .brief { padding-left: 18px; }
+  .win { background: #e7f6ec; border: 1px solid #9fd8b1; border-radius: 4px; padding: 10px; margin: 12px 0; }
+  .win p { margin: 6px 0; }
+  .cmp { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  .cmp td, .cmp th { border-bottom: 1px solid var(--line); padding: 4px; text-align: left; font-variant-numeric: tabular-nums; }
+  .back { border: none; background: none; color: var(--blue); padding: 0; margin-bottom: 8px; cursor: pointer; }
+  .check { display: flex; gap: 6px; align-items: center; margin: 12px 0; }
+  .btn { padding: 5px 12px; border: 1px solid var(--line); background: #fff; border-radius: 3px; cursor: pointer; }
+  .tip { color: var(--muted); font-size: 12px; }
+
+  #view { position: relative; min-height: 0; overflow: hidden; background: linear-gradient(#fbfcfd, #d6dee4); }
+  canvas { display: block; }
+  #home { position: absolute; top: 12px; left: 12px; width: 34px; height: 34px; padding: 5px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: #2f6f9c; cursor: pointer; }
+  #dialog { position: absolute; top: 12px; right: 12px; width: 280px; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
+  .dh { background: var(--dark); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 7px 10px; border-radius: 4px 4px 0 0; }
+  .dh small { font-weight: 400; letter-spacing: 0; opacity: .7; margin-left: 6px; }
+  .db { padding: 10px; max-height: 60vh; overflow: auto; }
+  .db label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 0; }
+  .db input, .db select { width: 110px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 3px; font: inherit; }
+  .db input:focus, .db select:focus { outline: 2px solid var(--blue); }
+  fieldset { border: 1px solid var(--line); border-radius: 4px; margin: 0 0 8px; padding: 2px 8px 4px; }
+  fieldset.sel { border-color: #e65100; }
+  legend { display: flex; align-items: center; gap: 4px; font-weight: 600; }
+  legend button { border: none; background: none; color: var(--muted); cursor: pointer; }
+  .note { color: var(--muted); margin: 4px 0; }
+  .err { color: var(--warn); margin: 6px 0 0; }
+  .err:empty { display: none; }
+  .df { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line); }
+  .df span { flex: 1; }
+  .df button { padding: 5px 12px; border: 1px solid var(--line); background: #fff; border-radius: 3px; cursor: pointer; }
+  .df .ok { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .df .ok:disabled { opacity: .4; cursor: default; }
+  .df .danger { color: var(--warn); }
+  #hint { position: absolute; left: 12px; bottom: 12px; max-width: 70%; padding: 6px 10px; border-radius: 4px; background: rgba(43, 48, 54, .85); color: #fff; }
+  #readout { position: absolute; pointer-events: none; padding: 1px 6px; border: 1px solid var(--blue); border-radius: 3px; background: #fff; font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  footer { display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 6px 10px; background: var(--dark); color: #cfd5da; }
+  footer .label { font-size: 10px; letter-spacing: .08em; opacity: .7; }
+  #chips { display: flex; gap: 4px; overflow-x: auto; }
+  .chip { display: flex; flex-direction: column; align-items: center; min-width: 62px; padding: 3px 6px; border: 1px solid #4a525a; border-radius: 3px; background: #3a4047; color: #e8ecef; font-size: 10px; cursor: pointer; }
+  .chip svg { width: 20px; height: 20px; }
+  .chip:hover { border-color: var(--blue); }
+  .chip.on { background: var(--blue); border-color: var(--blue); }
+  .chip.err { background: #7a2a22; border-color: var(--warn); }
+  .chip.rolled { opacity: .35; }
+  .empty { opacity: .6; font-style: italic; }
+  #loading { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(244, 245, 246, .95); font-size: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">CAD Teacher</div>
+  <div class="ribbon">
+    <div id="tab">SOLID</div>
+    <div id="tools"></div>
+  </div>
+</header>
+<main>
+  <aside id="learn"></aside>
+  <div id="view">
+    <button id="home" title="Home view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 11l9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5"/></svg></button>
+    <div id="dialog" hidden></div>
+    <div id="hint"></div>
+    <div id="readout" hidden></div>
+  </div>
+</main>
+<footer>
+  <span class="label">TIMELINE</span>
+  <div id="chips"></div>
+</footer>
+<div id="loading">Loading the CAD engine…</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
