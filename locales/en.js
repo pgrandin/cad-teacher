@@ -49,6 +49,7 @@ export default {
   'sketch.empty': 'Nothing drawn yet. Pick Line, Rectangle or Circle in the toolbar.',
   'sketch.replane': 'Redefine Sketch Plane',
   'dlg.delete': 'Delete',
+  'dlg.name': 'Name',
   'dlg.cancel': 'Cancel',
   'dlg.ok': 'OK',
   'extrude.profile': 'Profile',

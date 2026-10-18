@@ -47,6 +47,7 @@ export default {
   'sketch.empty': 'Noch nichts gezeichnet. Wähle Linie, Rechteck oder Kreis in der Werkzeugleiste.',
   'sketch.replane': 'Skizzenebene neu definieren',
   'dlg.delete': 'Löschen',
+  'dlg.name': 'Name',
   'dlg.cancel': 'Abbrechen',
   'dlg.ok': 'OK',
   'extrude.profile': 'Profil',

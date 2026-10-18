@@ -47,6 +47,7 @@ export default {
   'sketch.empty': 'Todavía no hay nada dibujado. Elige Línea, Rectángulo o Círculo en la barra de herramientas.',
   'sketch.replane': 'Redefinir plano de boceto',
   'dlg.delete': 'Eliminar',
+  'dlg.name': 'Nombre',
   'dlg.cancel': 'Cancelar',
   'dlg.ok': 'Aceptar',
   'extrude.profile': 'Perfil',

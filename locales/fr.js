@@ -47,6 +47,7 @@ export default {
   'sketch.empty': 'Rien de dessiné pour l’instant. Choisis Ligne, Rectangle ou Cercle dans la barre d’outils.',
   'sketch.replane': "Redéfinir le plan d'esquisse",
   'dlg.delete': 'Supprimer',
+  'dlg.name': 'Nom',
   'dlg.cancel': 'Annuler',
   'dlg.ok': 'OK',
   'extrude.profile': 'Profil',

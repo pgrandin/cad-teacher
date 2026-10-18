@@ -331,7 +331,11 @@ useOrtho(false);
 
 // ---------- timeline actions ----------
 // Timeline names like Fusion: Sketch1, Extrude2... in the current language.
-const nameAt = (i, type) => t(`feature.${type}`) + (features.slice(0, i).filter(f => f.type === type).length + 1);
+// A kid can name a feature (Name field in its panel); without one it is Sketch1, Extrude2...
+const autoName = (i, type) => t(`feature.${type}`) + (features.slice(0, i).filter(f => f.type === type).length + 1);
+const esc = s => s.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
+const nameAt = (i, f) => esc(f.name || autoName(i, f.type));
+const nameField = (name, auto) => `<label>${t('dlg.name')}<input type="text" data-k="name" maxlength="30" value="${esc(name || '')}" placeholder="${esc(auto)}"></label>`;
 const pushUndo = () => { undoStack.push(structuredClone(asm ? asm.joints : features)); if (undoStack.length > 50) undoStack.shift(); };
 
 function rebuildAll() {
@@ -747,8 +751,8 @@ function renderDialog() {
       `<fieldset data-i="${i}"${i === sketch.sel ? ' class="sel"' : ''}><legend>${t(`shape.${s.kind}`)} ${i + 1}<button data-act="del-shape" data-i="${i}" title="${t('dlg.delete')}">✕</button></legend>` +
       SHAPE_FIELDS[s.kind].map(([k, label]) => num(label, s[k], `data-i="${i}" data-k="${k}"`)).join('') +
       (s.kind === 'poly' ? `<p class="note">${t('sketch.corners', { n: s.pts.length })}</p>` : '') + '</fieldset>').join('');
-    el.innerHTML = `<div class="dh">${t('tab.sketch')}<small>${nameAt(sketch.index, 'sketch')}</small></div>
-      <div class="db"><button data-act="replane" class="wide${sketch.picking ? ' on' : ''}">${t(sketch.picking ? 'dlg.cancel' : 'sketch.replane')}</button>
+    el.innerHTML = `<div class="dh">${t('tab.sketch')}<small>${nameAt(sketch.index, sketch.feature)}</small></div>
+      <div class="db">${nameField(sketch.feature.name, autoName(sketch.index, 'sketch'))}<button data-act="replane" class="wide${sketch.picking ? ' on' : ''}">${t(sketch.picking ? 'dlg.cancel' : 'sketch.replane')}</button>
       ${rows || `<p class="note">${t('sketch.empty')}</p>`}</div>
       <div class="df"><button data-act="delete" class="danger">${t('dlg.delete')}</button><span></span><button data-act="finish" class="ok">${t('tool.finish')}</button></div>`;
     return;
@@ -757,7 +761,7 @@ function renderDialog() {
   const f = cmd.feature;
   let body = '';
   const sketches = features.slice(0, cmd.index).map((g, i) => [g, i]).filter(([g]) => g.type === 'sketch');
-  const profile = () => select('extrude.profile', 'sketch', f.sketch, sketches.map(([g, i]) => [g.id, nameAt(i, 'sketch')]));
+  const profile = () => select('extrude.profile', 'sketch', f.sketch, sketches.map(([g, i]) => [g.id, nameAt(i, g)]));
   const operation = () => select('extrude.operation', 'op', f.op, [['join', t('extrude.join')], ['cut', t('extrude.cut')]]);
   if (f.type === 'extrude') {
     body = profile() + num('extrude.distance', f.distance, 'data-k="distance"') + operation();
@@ -765,7 +769,7 @@ function renderDialog() {
     body = profile() + select('revolve.axis', 'axis', f.axis, [['v', t('revolve.axisV')], ['h', t('revolve.axisH')]]) +
       num('revolve.angle', f.angle, 'data-k="angle"') + operation();
   } else if (f.type === 'pattern') {
-    body = select('pattern.of', 'of', f.of, patternable(cmd.index).map(([g, i]) => [g.id, nameAt(i, g.type)])) +
+    body = select('pattern.of', 'of', f.of, patternable(cmd.index).map(([g, i]) => [g.id, nameAt(i, g)])) +
       select('pattern.kind', 'kind', f.kind, [['rect', t('pattern.rect')], ['circle', t('pattern.circle')]]) +
       (f.kind === 'circle'
         ? `<p class="note">${t('pattern.circleNote')}</p>` + num('pattern.n', f.n, 'data-k="n"')
@@ -778,8 +782,8 @@ function renderDialog() {
     body = `<p class="note">${tn('edges.picked', cmd.sel.size)}</p>` + num(`${f.type}.r`, f.r, 'data-k="r" step="0.5"');
   }
   const isNew = cmd.index === features.length;
-  el.innerHTML = `<div class="dh">${t(`feature.${f.type}`).toLocaleUpperCase(lang)}<small>${nameAt(cmd.index, f.type)}</small></div>
-    <div class="db">${body}<p class="err" id="cmderr"></p></div>
+  el.innerHTML = `<div class="dh">${t(`feature.${f.type}`).toLocaleUpperCase(lang)}<small>${nameAt(cmd.index, f)}</small></div>
+    <div class="db">${nameField(f.name, autoName(cmd.index, f.type))}${body}<p class="err" id="cmderr"></p></div>
     <div class="df">${isNew ? '' : `<button data-act="delete" class="danger">${t('dlg.delete')}</button>`}<span></span><button data-act="cancel">${t('dlg.cancel')}</button><button data-act="ok" class="ok" id="okbtn">${t('dlg.ok')}</button></div>`;
   updateCmdError();
 }
@@ -795,8 +799,9 @@ $('#dialog').addEventListener('input', e => {
   if (acmd) return asmInput(e.target);
   const el = e.target, k = el.dataset.k;
   if (!k) return;
-  const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value.replace(',', '.'));
+  const v = el.tagName === 'SELECT' || k === 'name' ? el.value.trim() : parseFloat(el.value.replace(',', '.'));
   if (Number.isNaN(v)) return; // half-typed, like "-"
+  if (k === 'name') return void ((sketch || cmd).feature.name = v);
   if (sketch) {
     sketch.feature.shapes[+el.dataset.i][k] = v;
     drawSketches();
@@ -832,7 +837,7 @@ function renderTimeline() {
   if (asm) return renderJointTimeline();
   const active = sketch?.index ?? cmd?.index ?? -1;
   $('#chips').innerHTML = features.map((f, i) => {
-    const err = built.errors[f.id], name = nameAt(i, f.type);
+    const err = built.errors[f.id], name = nameAt(i, f);
     const cls = ['chip', err && 'err', i === active && 'on', active >= 0 && i > active && 'rolled'].filter(Boolean).join(' ');
     return `<button class="${cls}" data-i="${i}" title="${name}${err ? ': ' + t(err) : ''} (${t('timeline.edit')})">${ICON[f.type]}<span>${name}</span></button>`;
   }).join('') || `<span class="empty">${t('timeline.empty')}</span>`;
@@ -1059,7 +1064,7 @@ function compName(id) {
   const c = asm.components.find(c => c.id === id), same = asm.components.filter(x => x.part === c.part);
   return t(`lesson.${c.part}.title`) + (same.length > 1 ? ` ${same.indexOf(c) + 1}` : '');
 }
-const jointName = i => t('feature.joint') + (i + 1);
+const jointName = i => esc(asm.joints[i]?.name || t('feature.joint') + (i + 1));
 
 // Joints as shown right now: the committed ones, plus the joint being edited or the angles being driven.
 function shownJoints() {
@@ -1158,7 +1163,7 @@ function renderAsmDialog(el) {
     body = rev.map(([j, i]) => `<label>${jointName(i)} · ${compName(j.moving.comp)}</label>${slider(acmd.angles[j.id] ?? j.angle, `data-j="${j.id}"`)}`).join('');
   } else {
     const j = acmd.joint, who = p => (p ? `${compName(p.comp)} ✓` : `<i>${t('joint.pick')}</i>`);
-    body = `<p class="note">1. ${t('joint.moving')}: ${who(j.moving)}<br>2. ${t('joint.fixed')}: ${who(j.fixed)}</p>` +
+    body = nameField(j.name, t('feature.joint') + (acmd.index + 1)) + `<p class="note">1. ${t('joint.moving')}: ${who(j.moving)}<br>2. ${t('joint.fixed')}: ${who(j.fixed)}</p>` +
       select('joint.type', 'type', j.type, [['rigid', t('joint.rigid')], ['revolute', t('joint.revolute')]]) +
       num('joint.angle', j.angle, 'data-k="angle"') + slider(j.angle, 'data-k="angle"');
   }
@@ -1175,7 +1180,7 @@ function updateAsmError() {
   $('#okbtn').disabled = !!err;
 }
 function asmInput(el) {
-  const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value.replace(',', '.'));
+  const v = el.tagName === 'SELECT' || el.dataset.k === 'name' ? el.value.trim() : parseFloat(el.value.replace(',', '.'));
   if (Number.isNaN(v)) return;
   if (el.dataset.j) {
     acmd.angles[el.dataset.j] = v;
