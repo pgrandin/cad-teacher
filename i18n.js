@@ -25,6 +25,8 @@ export function t(key, vars = {}) {
   return typeof v === 'string' ? v.replace(/\{(\w+)\}/g, (_, k) => vars[k]) : v;
 }
 
+export const has = key => key in LANGS[lang] || key in en;
+
 // Plurals: key.one / key.other (French counts 0 as "one", like it should).
 export function tn(key, n) {
   const k = `${key}.${new Intl.PluralRules(lang).select(n)}`;

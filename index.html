@@ -32,6 +32,10 @@
   main { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
   #learn { background: #fff; border-right: 1px solid var(--line); overflow: auto; padding: 14px 16px; }
   #learn h2 { font-size: 15px; margin: 4px 0 8px; }
+  .words { display: flex; gap: 0; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .words button { flex: 1; padding: 5px 8px; border: none; background: #fff; color: var(--muted); font-size: 12px; cursor: pointer; }
+  .words button + button { border-left: 1px solid var(--line); }
+  .words button.on { background: var(--blue); color: #fff; font-weight: 600; }
   .course-card { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 10px; padding: 0 10px; }
   .course-card summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 14px; font-weight: 600; cursor: pointer; list-style: none; }
   .course-card summary::-webkit-details-marker { display: none; }

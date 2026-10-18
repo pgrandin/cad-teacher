@@ -135,6 +135,8 @@ for (const [, k] of Object.values(en).join(' ').matchAll(/data-term="([\w-]+)"/g
 for (const l of LESSONS) assert.equal(en[`lesson.${l.id}.steps`].length, l.steps.length, `${l.id}: one text per step`);
 for (const c of CHALLENGES) assert.ok(en[`challenge.${c.id}.brief`], `${c.id}: brief`);
 for (const c of COURSES) assert.ok(en[`course.${c}.title`], `course ${c}: title`);
+// Every explanation has a simple-words version (the default for kids).
+for (const k of Object.keys(en).filter(k => /^(course\.\w+\.intro|lesson\.[\w-]+\.(intro|outro)|term\.\w+\.def)$/.test(k))) assert.ok(en[k + '.simple'], `simple words: ${k}`);
 for (const file of ['./cad.js', './assembly.js'])
   for (const [k] of readFileSync(new URL(file, import.meta.url), 'utf8').matchAll(/err\.\w+/g)) assert.ok(k in en, `missing ${k}`);
 console.log('ok');

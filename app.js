@@ -7,7 +7,7 @@ import { LineSegmentsGeometry } from './vendor/LineSegmentsGeometry.js';
 import { LineMaterial } from './vendor/LineMaterial.js';
 import * as cad from './cad.js';
 import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
-import { t, tn, lang, setLang, LANGS } from './i18n.js';
+import { t, tn, has, lang, setLang, LANGS } from './i18n.js';
 import { poses } from './assembly.js';
 import { VERSION } from './version.js';
 
@@ -817,8 +817,15 @@ function checkLesson() {
 
 const sizeOf = m => (m ? [0, 1, 2].map(i => fmt(m.max[i] - m.min[i])).join(' × ') : '-');
 const volOf = m => (m ? Math.round(m.volume).toLocaleString(lang) + ' mm³' : '-');
+// Explanations come in two versions: simple words (default, for kids) and Fusion words (the real jargon).
+// A text uses its "<key>.simple" version when there is one and the switch says so.
+const WORDS_KEY = 'cad-teacher-words';
+let words = (() => { try { return localStorage.getItem(WORDS_KEY) || 'simple'; } catch { return 'simple'; } })();
+const tw = key => t(words === 'simple' && has(key + '.simple') ? key + '.simple' : key);
+const wordsSwitch = () => `<div class="words" role="group">${['simple', 'fusion'].map(w =>
+  `<button data-words="${w}"${w === words ? ' class="on"' : ''}>${t(w === 'simple' ? 'learn.wordsSimple' : 'learn.wordsFusion')}</button>`).join('')}</div>`;
 // Text of a lesson or challenge ({ def, challenge }) from the locale files.
-const lt = (x, k) => t(`${x.challenge ? 'challenge' : 'lesson'}.${x.def.id}.${k}`);
+const lt = (x, k) => tw(`${x.challenge ? 'challenge' : 'lesson'}.${x.def.id}.${k}`);
 
 // Courses fold open like <details>. Only the course being worked on starts open, so every course title fits.
 const openCourses = new Set();
@@ -829,19 +836,19 @@ function renderLearn() {
     if (!openCourses.size) openCourses.add((next || ALL[0]).def.course);
     const badge = (x, i) => (done.includes(x.def.id) ? '✅' : x.challenge ? `<b class="star" title="${t('learn.challengeBadge')}">★</b>` : `<b>${i + 1}</b>`);
     const item = (x, i) => `<li><button data-open="${x.def.id}"${x === next ? ' class="next"' : ''}>${badge(x, i)} ${lt(x, 'title')}</button></li>`;
-    el.innerHTML = COURSES.map((c, ci) => {
+    el.innerHTML = wordsSwitch() + COURSES.map((c, ci) => {
       const items = ALL.filter(x => x.def.course === c), n = items.filter(x => done.includes(x.def.id)).length;
       const start = ci === 0 && !done.length ? ` <em class="tag">${t('learn.startHere')}</em>` : '';
       return `<details class="course-card" data-course="${c}"${openCourses.has(c) ? ' open' : ''}>
         <summary><span>${t(`course.${c}.title`)}${start}</span><small>${n}/${items.length}</small></summary>
-        <p class="tip">${t(`course.${c}.intro`)}</p><ol class="menu">${items.map(item).join('')}</ol></details>`;
+        <p class="tip">${tw(`course.${c}.intro`)}</p><ol class="menu">${items.map(item).join('')}</ol></details>`;
     }).join('') + `<p class="tip">${t('learn.tip')}</p>`;
     return;
   }
   const { def, challenge, steps, step } = lesson;
   const won = step >= steps.length;
   const next = ALL[ALL.findIndex(x => x.def === def) + 1];
-  el.innerHTML = `<button class="back" data-act="back">${t('learn.back')}</button>
+  el.innerHTML = `${wordsSwitch()}<button class="back" data-act="back">${t('learn.back')}</button>
     <div class="course">${t(`course.${def.course}.title`)}</div>
     ${challenge
       ? `<h2>${t('learn.challenge', { title: lt(lesson, 'title') })}</h2>
@@ -860,6 +867,12 @@ function renderLearn() {
     <button class="btn" data-act="restart">${t('learn.restart')}</button>`;
 }
 $('#learn').addEventListener('click', e => {
+  const w = e.target.closest('[data-words]')?.dataset.words;
+  if (w) {
+    words = w;
+    try { localStorage.setItem(WORDS_KEY, w); } catch { /* private mode */ }
+    return renderLearn();
+  }
   const el = e.target.closest('[data-open], [data-act]');
   if (!el) return;
   if (el.dataset.open) {
@@ -887,7 +900,7 @@ $('#learn').addEventListener('click', e => {
 $('#learn').addEventListener('mouseover', e => {
   const d = e.target.closest('[data-term]'), tip = $('#tip');
   if (!d) return;
-  tip.innerHTML = `<b>${t(`term.${d.dataset.term}.name`)}</b>${t(`term.${d.dataset.term}.def`)}`;
+  tip.innerHTML = `<b>${t(`term.${d.dataset.term}.name`)}</b>${tw(`term.${d.dataset.term}.def`)}`;
   tip.hidden = false;
   const r = d.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
   tip.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
