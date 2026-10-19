@@ -68,6 +68,20 @@ const TOP_HOLE = { type: 'hole', id: 'h1', face: top(20), x: 10, y: 0, d: 6, dep
 
 export const LESSONS = [
   {
+    id: 'intro',
+    version: 2,
+    concepts: ['X', 'Y', 'Z', 'origin', 'XY', 'XZ', 'YZ'],
+    course: 'basics',
+    start: [],
+    steps: [
+      ...Array.from({ length: 7 }, (_, i) => s => s.introAcknowledged === i),
+      s => s.viewDirection?.join(',') === '0,0,1',
+      s => s.viewDirection?.filter(Boolean).length === 2,
+      onPlane('XY'), onPlane('XZ'), onPlane('YZ'),
+      s => s.mode === 'model',
+    ],
+  },
+  {
     id: 'block',
     course: 'basics',
     start: [],

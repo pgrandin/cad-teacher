@@ -54,6 +54,16 @@
   .menu b.star { background: #f5a623; }
   .course { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .menu b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 11px; }
+  .intro-step { margin: 16px 0; padding: 14px; border: 1px solid #e7bf55; border-left: 4px solid #e7a300; border-radius: 5px; background: #fff9e8; line-height: 1.65; }
+  .intro-step small { color: var(--muted); }
+  .intro-step h3 { margin: 5px 0 12px; font-size: 18px; }
+  .intro-step p { margin: 0 0 12px; }
+  .intro-step details.simple { margin: 12px 0 0; }
+  .intro-step .simple-copy { margin-top: 5px; padding: 8px; border-left: 3px solid var(--blue); border-radius: 3px; background: #f2f8fc; font-size: 13px; }
+  .intro-step .simple-copy p { margin: 0 0 10px; padding: 0; border: 0; background: none; }
+  .intro-step .simple-copy p:last-child { margin-bottom: 0; }
+  .intro-nav { display: flex; gap: 8px; margin-top: 18px; }
+  .btn.primary { background: var(--blue); border-color: var(--blue); color: white; margin-left: auto; }
   .steps { padding-left: 20px; }
   .steps li { margin: 8px 0; color: var(--muted); }
   .steps li.done { color: #9aa3aa; text-decoration: line-through; }
@@ -80,6 +90,16 @@
   canvas { display: block; }
   #home, #proj { position: absolute; top: 12px; left: 12px; width: 34px; height: 34px; padding: 5px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: #2f6f9c; cursor: pointer; }
   #proj { top: 52px; }
+  #view-cube { position: absolute; bottom: 40px; right: 12px; width: 160px; height: 160px; overflow: visible; }
+  #view-cube text { font: 600 11px system-ui, sans-serif; pointer-events: none; }
+  #view-cube g { cursor: pointer; outline: none; }
+  #view-cube .cube-face polygon { fill: #f4f7fa; stroke: #7b8b98; stroke-width: 1; }
+  #view-cube .cube-edge line { stroke: transparent; stroke-width: 10; }
+  #view-cube .cube-corner circle { fill: transparent; }
+  #view-cube .cube-face:hover polygon, #view-cube .cube-face:focus polygon { fill: #a9dafa; }
+  #view-cube .cube-edge:hover line, #view-cube .cube-edge:focus line { stroke: #0696d7; }
+  #view-cube .cube-corner:hover circle, #view-cube .cube-corner:focus circle { fill: #0696d7; }
+  #view-cube g[aria-disabled="true"] { cursor: default; opacity: .45; pointer-events: none; }
   #dialog { position: absolute; top: 12px; right: 12px; width: 300px; background: #fff; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
   .dh { background: var(--dark); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 7px 10px; border-radius: 4px 4px 0 0; }
   .dh small { font-weight: 400; letter-spacing: 0; opacity: .7; margin-left: 6px; }
@@ -143,6 +163,7 @@
     <input type="file" id="open-file" accept=".json" hidden>
     <div id="parts" hidden></div>
     <div id="dialog" hidden></div>
+    <svg id="view-cube" viewBox="0 0 160 160" role="group"></svg>
     <div id="hint"></div>
     <div id="readout" hidden></div>
   </div>
