@@ -333,7 +333,7 @@ useOrtho(false);
 // Timeline names like Fusion: Sketch1, Extrude2... in the current language.
 // A kid can name a feature (Name field in its panel); without one it is Sketch1, Extrude2...
 const autoName = (i, type) => t(`feature.${type}`) + (features.slice(0, i).filter(f => f.type === type).length + 1);
-const esc = s => s.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
+const esc = s => String(s).replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
 const nameAt = (i, f) => esc(f.name || autoName(i, f.type));
 const nameField = (name, auto) => `<label>${t('dlg.name')}<input type="text" data-k="name" maxlength="30" value="${esc(name || '')}" placeholder="${esc(auto)}"></label>`;
 const pushUndo = () => { undoStack.push(structuredClone(asm ? asm.joints : features)); if (undoStack.length > 50) undoStack.shift(); };
@@ -465,14 +465,39 @@ function editFeature(i) {
 }
 
 // STL is for the 3D printer; STEP opens in Fusion (File → Open) to keep designing there.
+// Save writes the timeline itself (Open reads it back); STL and STEP only carry the shape.
 function exportFile(kind) {
   const a = document.createElement('a');
   // STEP keeps the design position (to keep designing in Fusion); STL is placed on the bed, ready to print.
-  a.href = URL.createObjectURL(kind === 'step' ? cad.stepOf(built.body) : cad.stlOf(cad.onBed(built.body, printDown)));
-  a.download = `${lesson?.def.id || 'part'}.${kind}`;
+  a.href = URL.createObjectURL(kind === 'save' ? new Blob([JSON.stringify({ app: 'cad-teacher', version: 1, features })], { type: 'application/json' })
+    : kind === 'step' ? cad.stepOf(built.body) : cad.stlOf(cad.onBed(built.body, printDown)));
+  a.download = `${lesson?.def.id || 'my-design'}.${kind === 'save' ? 'cadteacher.json' : kind}`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  if (kind === 'step') flash(t('hint.stepSaved'), 8000);
+  if (kind !== 'stl') flash(t(kind === 'step' ? 'hint.stepSaved' : 'hint.saved'), 8000);
+}
+
+const TYPES = ['sketch', 'extrude', 'revolve', 'fillet', 'chamfer', 'hole', 'pattern'];
+async function openFile(file) {
+  let data;
+  try {
+    data = JSON.parse(await file.text());
+    if (data.app !== 'cad-teacher' || !data.features.every(f => TYPES.includes(f.type) && typeof f.id === 'string')) throw 0;
+  } catch { return flash(t('err.badFile')); }
+  if (lesson) openFree();
+  // Bad values show as red features, like in any timeline; anything worse is undone.
+  try { replaceDesign(data.features); } catch { undoLast(); flash(t('err.badFile')); }
+}
+// New and Open replace the free design; Ctrl+Z brings the old one back.
+function replaceDesign(list) {
+  sketch = cmd = null;
+  pickingPlane = false;
+  sketchControls(false);
+  pushUndo();
+  features = list;
+  bumpUid(features);
+  rebuildAll();
+  home();
 }
 
 function act(id, fromKey = false) {
@@ -486,7 +511,9 @@ function act(id, fromKey = false) {
     return refresh();
   }
   if (id === 'undo') return undoLast();
-  if (id === 'stl' || id === 'step') return exportFile(id);
+  if (id === 'stl' || id === 'step' || id === 'save') return exportFile(id);
+  if (id === 'open') return $('#open-file').click();
+  if (id === 'new') return replaceDesign([]);
   cmd = null;
   hover = null;
   printMode = id === 'print' && !printMode;
@@ -662,6 +689,7 @@ addEventListener('keydown', e => {
   }
   if (e.key === 'Escape') return escape();
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); return undoLast(); }
+  if ((e.ctrlKey || e.metaKey) && 'so'.includes(e.key.toLowerCase()) && !asm && !sketch) { e.preventDefault(); return act(e.key.toLowerCase() === 's' ? 'save' : 'open'); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   // Same shortcuts as Fusion 360.
   const id = (asm ? { j: 'joint' } : sketch ? { l: 'line', r: 'rect', c: 'circle' } : { e: 'extrude', h: 'hole', f: 'fillet' })[e.key.toLowerCase()];
@@ -682,6 +710,9 @@ const ICON = {
   circle: svg('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>'),
   finish: svg('<path d="M4 12.5l5 5L20 6"/>'),
   undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'),
+  new: svg('<path d="M6 3h8l4 4v14H6z"/><path d="M12 10v6M9 13h6"/>'),
+  open: svg('<path d="M3 6h6l2 2h10v11H3z"/>'),
+  save: svg('<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/>'),
   stl: svg('<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>'),
   step: svg('<path d="M12 3v9M8 8l4 4 4-4"/><path d="M4 14l8 4 8-4M4 14v4l8 4 8-4v-4"/>'),
   print: svg('<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="1"/><path d="M7 14h10v7H7z"/><path d="M10 17h4" stroke-width="2"/>'),
@@ -722,6 +753,9 @@ function renderToolbar() {
       toolBtn('chamfer', { on: type === 'chamfer', disabled: !body }),
     ]) + group('print', [toolBtn('print', { on: printMode, disabled: !body })]) + group('file', [
       toolBtn('undo', { disabled: !undoStack.length, key: 'Ctrl+Z' }),
+      ...(lesson ? [] : [toolBtn('new', { disabled: !features.length })]),
+      toolBtn('open', { key: 'Ctrl+O' }),
+      toolBtn('save', { disabled: !features.length, key: 'Ctrl+S' }),
       toolBtn('stl', { disabled: !body }),
       toolBtn('step', { disabled: !body }),
     ]);
@@ -877,11 +911,33 @@ const doneIds = () => { try { return JSON.parse(localStorage.getItem(DONE_KEY)) 
 const markDone = id => { try { localStorage.setItem(DONE_KEY, JSON.stringify([...new Set([...doneIds(), id])])); } catch { /* private mode */ } };
 
 // Each lesson's work is kept in this browser, so a reload or coming back later picks up where the kid was.
+// Outside lessons the kid has one free design, kept the same way under 'free'.
 const workKey = id => 'cad-teacher-work:' + id;
 const loadWork = id => { try { return JSON.parse(localStorage.getItem(workKey(id))); } catch { return null; } };
+let freeLoaded = false; // the screen draws before the engine loads: don't save that empty design over the kept one
 function saveWork() {
-  if (!lesson) return;
-  try { localStorage.setItem(workKey(lesson.def.id), JSON.stringify({ features, joints: asm?.joints, step: lesson.step, printDown })); } catch { /* storage full or blocked */ }
+  if (!lesson && !freeLoaded) return;
+  try { localStorage.setItem(workKey(lesson?.def.id || 'free'), JSON.stringify({ features, joints: asm?.joints, step: lesson?.step, printDown })); } catch { /* storage full or blocked */ }
+}
+// New ids must not collide with restored ones (u3, j2...).
+const bumpUid = list => { for (const x of list) uid = Math.max(uid, +String(x.id).replace(/^\D+/, '') || 0); };
+
+function openFree(saved = loadWork('free')) {
+  sketch = cmd = acmd = lesson = null;
+  pickingPlane = printMode = false;
+  sketchControls(false);
+  undoStack.length = 0;
+  features = saved?.features || [];
+  printDown = saved?.printDown || null;
+  bumpUid(features);
+  freeLoaded = true;
+  $('#tip').hidden = true;
+  clear(goalGroup);
+  clear(diffGroup);
+  setAssembly(null);
+  rebuildAll();
+  renderLearn();
+  home();
 }
 
 function openLesson(def, challenge, fresh = false) {
@@ -896,8 +952,7 @@ function openLesson(def, challenge, fresh = false) {
   clear(goalGroup);
   setAssembly(def.assembly);
   if (asm && saved?.joints) asm.joints = saved.joints;
-  // New ids must not collide with restored ones (u3, j2...).
-  for (const x of [...features, ...(asm?.joints || [])]) uid = Math.max(uid, +String(x.id).replace(/^\D+/, '') || 0);
+  bumpUid([...features, ...(asm?.joints || [])]);
   const goalBody = def.goal && cad.rebuild(def.goal).body;
   if (goalBody) goalGroup.add(fat(cad.meshOf(goalBody).edges.lines, M.goal));
   goalGroup.visible = showGoal;
@@ -985,13 +1040,7 @@ $('#learn').addEventListener('click', e => {
     const c = lesson.def.course, done = doneIds();
     openCourses.clear();
     if (ALL.some(x => x.def.course === c && !done.includes(x.def.id))) openCourses.add(c);
-    lesson = acmd = null;
-    $('#tip').hidden = true;
-    clear(goalGroup);
-    clear(diffGroup);
-    setAssembly(null);
-    renderLearn();
-    refresh();
+    openFree();
   }
   else if (a === 'next') { const x = ALL[ALL.findIndex(x => x.def === lesson.def) + 1]; openLesson(x.def, x.challenge); }
   else if (a === 'restart') openLesson(lesson.def, lesson.challenge, true);
@@ -1275,6 +1324,11 @@ $('#lang').addEventListener('change', e => {
 $('#version').textContent = VERSION;
 if (VERSION !== 'dev') $('#version').href = `https://github.com/pgrandin/cad-teacher/commit/${VERSION}`;
 
+$('#open-file').addEventListener('change', e => {
+  if (e.target.files[0]) openFile(e.target.files[0]);
+  e.target.value = '';
+});
+
 applyLang();
 renderLearn();
 refresh();
@@ -1282,6 +1336,7 @@ home();
 try {
   await cad.init();
   $('#loading').remove();
+  openFree();
 } catch (e) {
   $('#loading').textContent = t('app.loadFailed', { msg: e?.message || e });
 }

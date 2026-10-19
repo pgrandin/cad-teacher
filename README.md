@@ -10,7 +10,9 @@ guided lessons and challenges checked against a goal shape ("Show differences" c
 pattern: chess pawn, robot wheel, toy brick), and "Print without supports" (the 45° rule, print
 orientation, sideways holes). Print check shows what would print in thin air and lets you pick the
 face that lies on the bed; Export STL saves the part in that position.
-Work is saved in the browser per lesson. Parts export to STL (3D printing) and STEP (opens in Fusion).
+Work is saved in the browser per lesson, and the design made outside lessons is kept too. Save writes
+the timeline to a `.cadteacher.json` file that Open reads back (another computer, a teacher). Parts
+export to STL (3D printing) and STEP (opens in Fusion).
 
 Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
 [replicad](https://replicad.xyz), WebAssembly). The view is three.js. Both are vendored in `vendor/`.
