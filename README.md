@@ -4,7 +4,7 @@
 
 Teaches kids the Fusion 360 / SolidWorks way to model: sketch, extrude, then build features on
 features (fillet, chamfer, hole, revolve, pattern), with a timeline you can go back and edit. Five courses, each with
-guided lessons and challenges checked against a goal shape ("Show differences" colors what is missing or extra): the basics, "Design your robot arm"
+guided lessons and challenges checked against a goal shape ("Show differences" colors what is missing or extra): the basics (starting with a guided walkthrough of axes, the origin, sketch planes, and camera controls), "Design your robot arm"
 (printable parts, then an assembly with joints you can drive, like Fusion's Joint and Drive Joints),
 "Elf furniture" (dollhouse table, chair, bookshelf, bed), "Spin & repeat" (revolve and
 pattern: chess pawn, robot wheel, toy brick), and "Print without supports" (the 45° rule, print
@@ -13,6 +13,8 @@ face that lies on the bed; Export STL saves the part in that position.
 Work is saved in the browser per lesson, and the design made outside lessons is kept too. Save writes
 the timeline to a `.cadteacher.json` file that Open reads back (another computer, a teacher). Parts
 export to STL (3D printing) and STEP (opens in Fusion).
+
+Click a face, edge, or corner of the view cube to align the camera; it follows the view as you orbit.
 
 Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
 [replicad](https://replicad.xyz), WebAssembly). The view is three.js. Both are vendored in `vendor/`.
@@ -23,7 +25,11 @@ Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
   page footer), cache-busts the app files, and publishes to GitHub Pages.
 
 Explanations use Fusion's own words, with an "In simple words" fold-out under each one for younger
-kids. Languages: English, Français, Español, Deutsch (picker in the header, or `?lang=fr` in the URL).
+kids, including every step of the intro. Both versions teach the same CAD terms: pair technical
+wording with a concrete example or analogy, rather than replacing the vocabulary. New teaching
+explanations need a `.simple` companion in every language. Languages: English, Français, Español, Deutsch (picker in the header, or `?lang=fr` in the URL).
+The language defaults to the first supported language in the browser’s preferences, with English
+as the fallback. A saved picker choice takes priority; `?lang=fr` in the URL overrides both.
 Tool names match Fusion 360's own UI in each language, so kids find the same words there.
 
 To add a lesson or challenge, append it to `lessons.js` with its `course` (its goal is a feature list), add its words

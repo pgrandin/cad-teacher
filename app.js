@@ -11,6 +11,7 @@ import { t, tn, has, lang, setLang, LANGS } from './i18n.js';
 import { poses } from './assembly.js';
 import { overhangs, printMatrix } from './print.js';
 import { VERSION } from './version.js';
+import { createViewCube } from './view-cube.js';
 
 const $ = s => document.querySelector(s);
 const V = a => new THREE.Vector3(...a);
@@ -59,7 +60,8 @@ grid.rotation.x = Math.PI / 2;
 const sketchGrid = new THREE.GridHelper(200, 40, 0x7d8b96, 0xc9d0d5);
 sketchGrid.rotation.x = Math.PI / 2;
 sketchGrid.userData.keep = true;
-scene.add(grid, new THREE.AxesHelper(30));
+const originAxes = new THREE.AxesHelper(30);
+scene.add(grid, originAxes);
 
 const fatMats = [];
 const fatMat = (color, linewidth, opacity = 1) => {
@@ -109,6 +111,70 @@ const clear = g => {
   g.clear();
 };
 
+function originLabel(text, color) {
+  const labelCanvas = document.createElement('canvas');
+  labelCanvas.width = 128;
+  labelCanvas.height = 64;
+  const ctx = labelCanvas.getContext('2d');
+  ctx.font = `bold ${text.length > 3 ? 24 : 36}px system-ui`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.fillText(text, 64, 32);
+  const texture = new THREE.CanvasTexture(labelCanvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false }));
+  label.scale.set(12, 6, 1);
+  label.raycast = () => {}; // Labels explain the geometry; surfaces handle selection.
+  label.renderOrder = 13;
+  return label;
+}
+
+const introAxes = new THREE.Group();
+for (const [i, name, color] of [[0, 'X', '#e53935'], [1, 'Y', '#43a047'], [2, 'Z', '#1e88e5']]) {
+  const direction = V([0, 0, 0].map((_, axis) => axis === i ? 1 : 0));
+  const arrow = new THREE.ArrowHelper(direction, V([0, 0, 0]), 42, color, 3, 1.8);
+  for (const part of [arrow.line, arrow.cone]) {
+    part.material.depthTest = part.material.depthWrite = false;
+    part.material.transparent = true;
+    part.renderOrder = 12;
+  }
+  const label = originLabel(name, color);
+  label.position.copy(direction).multiplyScalar(46);
+  arrow.userData.axis = label.userData.axis = name;
+  introAxes.add(arrow, label);
+}
+introAxes.visible = false;
+scene.add(introAxes);
+
+const introOrigin = new THREE.Group();
+const originDot = new THREE.Mesh(new THREE.SphereGeometry(1.4, 24, 16), new THREE.MeshBasicMaterial({ color: 0xe07800, depthTest: false, transparent: true }));
+originDot.renderOrder = 14;
+const originCoordinates = originLabel('0, 0, 0', '#a65700');
+originCoordinates.scale.set(18, 6, 1);
+originCoordinates.position.z = -5;
+introOrigin.add(originDot, originCoordinates);
+introOrigin.visible = false;
+scene.add(introOrigin);
+
+// Reveal only the current concept; retain faint axes to give it a frame of reference.
+function drawIntro() {
+  const active = lesson?.def.id === 'intro' && !sketch;
+  const focus = active && lesson.def.concepts[lesson.step];
+  introAxes.visible = active;
+  originAxes.visible = !active;
+  introOrigin.visible = focus === 'origin';
+  for (const child of introAxes.children) {
+    const opacity = !focus || focus.includes(child.userData.axis) ? 1 : 0.15;
+    if (child.isSprite) child.material.opacity = opacity;
+    else for (const part of [child.line, child.cone]) part.material.opacity = opacity;
+  }
+  if (active && !pickingPlane) for (const plane of originPlanes) {
+    plane.visible = !focus || focus === plane.userData.base;
+    plane.material.opacity = focus ? 0.45 : hover?.id === plane.userData.base ? 0.5 : 0.22;
+  }
+}
+
 // Fusion shows the three origin planes when you start a sketch. Laid out as an open room corner
 // (floor in front, walls behind) so none hides another from the home view.
 const originPlanes = [['XY', 0, 0, [20, -20, 0]], ['XZ', Math.PI / 2, 0, [20, 0, 20]], ['YZ', 0, Math.PI / 2, [0, -20, 20]]].map(([base, rx, ry, pos]) => {
@@ -116,13 +182,24 @@ const originPlanes = [['XY', 0, 0, [20, -20, 0]], ['XZ', Math.PI / 2, 0, [20, 0,
   m.rotation.set(rx, ry, 0);
   m.position.set(...pos);
   m.userData.base = base;
+  const label = originLabel(base, '#805000');
+  m.add(label);
   m.visible = false;
   scene.add(m);
   return m;
 });
 
+const updateViewCube = createViewCube($('#view-cube'), direction => {
+  if (sketch && !sketch.picking) return;
+  // Keep the current pan, zoom and projection when choosing a standard view.
+  camera.up.set(...(!direction[0] && !direction[1] ? [0, direction[2], 0] : [0, 0, 1]));
+  aim(controls.target.clone(), V(direction), viewHeight() / 2 / TAN);
+  if (lesson) lesson.viewDirection = direction;
+  checkLesson();
+  saveWork();
+}, t);
 let queued = 0;
-const draw = () => { queued ||= requestAnimationFrame(() => { queued = 0; renderer.render(scene, camera); }); };
+const draw = () => { queued ||= requestAnimationFrame(() => { queued = 0; drawIntro(); renderer.render(scene, camera); updateViewCube(camera, !!sketch && !sketch.picking); }); };
 controls.addEventListener('change', draw);
 new ResizeObserver(() => {
   const w = view.clientWidth, h = view.clientHeight;
@@ -917,7 +994,7 @@ const loadWork = id => { try { return JSON.parse(localStorage.getItem(workKey(id
 let freeLoaded = false; // the screen draws before the engine loads: don't save that empty design over the kept one
 function saveWork() {
   if (!lesson && !freeLoaded) return;
-  try { localStorage.setItem(workKey(lesson?.def.id || 'free'), JSON.stringify({ features, joints: asm?.joints, step: lesson?.step, printDown })); } catch { /* storage full or blocked */ }
+  try { localStorage.setItem(workKey(lesson?.def.id || 'free'), JSON.stringify({ features, joints: asm?.joints, step: lesson?.step, lessonVersion: lesson?.def.version, printDown })); } catch { /* storage full or blocked */ }
 }
 // New ids must not collide with restored ones (u3, j2...).
 const bumpUid = list => { for (const x of list) uid = Math.max(uid, +String(x.id).replace(/^\D+/, '') || 0); };
@@ -957,7 +1034,7 @@ function openLesson(def, challenge, fresh = false) {
   if (goalBody) goalGroup.add(fat(cad.meshOf(goalBody).edges.lines, M.goal));
   goalGroup.visible = showGoal;
   const steps = def.steps || [s => s.match];
-  lesson = { def, challenge, steps, step: saved?.step || 0, startCount: (def.start || []).length, goal: goalBody && cad.metrics(goalBody), goalBody };
+  lesson = { def, challenge, steps, step: saved?.lessonVersion === def.version ? saved?.step || 0 : 0, startCount: (def.start || []).length, goal: goalBody && cad.metrics(goalBody), goalBody };
   rebuildAll();
   renderLearn();
   home();
@@ -966,7 +1043,7 @@ function openLesson(def, challenge, fresh = false) {
 function checkLesson() {
   if (!lesson) return;
   const s = {
-    features, mode: sketch ? 'sketch' : 'model', draft: sketch?.feature.shapes, sketchOnFace: !!sketch?.feature.plane.face, sketchBase: sketch?.feature.plane.base,
+    introAcknowledged: lesson.introAcknowledged, viewDirection: lesson.viewDirection, features, mode: sketch ? 'sketch' : 'model', draft: sketch?.feature.shapes, sketchOnFace: !!sketch?.feature.plane.face, sketchBase: sketch?.feature.plane.base,
     dialog: acmd?.kind ?? cmd?.feature.type, selected: cmd?.sel?.size || 0, holeFace: !!cmd?.feature.face, match: lesson.match, startCount: lesson.startCount,
     print: { on: printMode, area: printArea }, asm, picked: acmd?.kind === 'joint' ? [acmd.joint.moving, acmd.joint.fixed].filter(Boolean).length : 0, driven: !!asm?.driven,
   };
@@ -981,12 +1058,17 @@ const volOf = m => (m ? Math.round(m.volume).toLocaleString(lang) + ' mm³' : '-
 // Text of a lesson or challenge ({ def, challenge }) from the locale files.
 const ltKey = (x, k) => `${x.challenge ? 'challenge' : 'lesson'}.${x.def.id}.${k}`;
 const lt = (x, k) => t(ltKey(x, k));
-// An explanation in Fusion words, with its "<key>.simple" version folded underneath for kids who
-// want it easier. Opened ones stay open while the panel redraws.
+// Teach the CAD wording and pair it with a concrete explanation using the same terms.
+// Array entries let lesson steps use the same dual format as introductions and glossary words.
 const openSimple = new Set();
-const explain = (key, cls = '') => `<p${cls ? ` class="${cls}"` : ''}>${t(key)}</p>` + (has(key + '.simple')
-  ? `<details class="simple" data-simple="${key}"${openSimple.has(key) ? ' open' : ''}><summary>${t('learn.simpleToggle')}</summary><p>${t(key + '.simple')}</p></details>`
-  : '');
+const explain = (key, cls = '', index) => {
+  const text = suffix => index === undefined ? t(key + suffix) : t(key + suffix)[index];
+  const id = index === undefined ? key : `${key}.${index}`;
+  const tag = index === undefined ? 'p' : 'div';
+  return `<${tag}${cls ? ` class="${cls}"` : ''}>${text('')}</${tag}>` + (has(key + '.simple')
+    ? `<details class="simple" data-simple="${id}"${openSimple.has(id) ? ' open' : ''}><summary>${t('learn.simpleToggle')}</summary><${tag} class="simple-copy">${text('.simple')}</${tag}></details>`
+    : '');
+};
 
 // Courses fold open like <details>. Only the course being worked on starts open, so every course title fits.
 const openCourses = new Set();
@@ -1009,6 +1091,16 @@ function renderLearn() {
   const { def, challenge, steps, step } = lesson;
   const won = step >= steps.length;
   const next = ALL[ALL.findIndex(x => x.def === def) + 1];
+  const introContent = def.id === 'intro' ? `<h2>${lt(lesson, 'title')}</h2>${explain(ltKey(lesson, 'intro'), 'tip')}
+    ${won ? '' : `<section class="intro-step" aria-labelledby="intro-step-title">
+      <small>${t('learn.step', { n: step + 1, total: steps.length })}</small>
+      <h3 id="intro-step-title">${lt(lesson, 'stepTitles')[step]}</h3>
+      ${explain(ltKey(lesson, 'steps'), '', step)}
+      <div class="intro-nav">
+        ${step > 0 && step <= def.concepts.length && !sketch ? `<button class="btn" data-act="intro-previous">${t('learn.previous')}</button>` : ''}
+        ${step < def.concepts.length ? `<button class="btn primary" data-act="intro-continue">${t('learn.continue')}</button>` : ''}
+      </div>
+    </section>`}` : '';
   el.innerHTML = `<button class="back" data-act="back">${t('learn.back')}</button>
     <div class="course">${t(`course.${def.course}.title`)}</div>
     ${challenge
@@ -1017,7 +1109,7 @@ function renderLearn() {
         <table class="cmp"><tr><th></th><th>${t('learn.yours')}</th><th>${t('learn.goal')}</th></tr>
         <tr><td>${t('learn.size')}</td><td>${sizeOf(lesson.mine)}</td><td>${sizeOf(lesson.goal)}</td></tr>
         <tr><td>${t('learn.volume')}</td><td>${volOf(lesson.mine)}</td><td>${volOf(lesson.goal)}</td></tr></table>`
-      : `<h2>${lt(lesson, 'title')}</h2>${explain(ltKey(lesson, 'intro'))}
+      : def.id === 'intro' ? introContent : `<h2>${lt(lesson, 'title')}</h2>${explain(ltKey(lesson, 'intro'))}
         <ol class="steps">${lt(lesson, 'steps').map((text, i) => `<li class="${i < step ? 'done' : i === step ? 'now' : ''}">${text}</li>`).join('')}</ol>`}
     ${won ? `<div class="win"><b>${t('learn.win')}</b>${challenge ? '' : explain(ltKey(lesson, 'outro'))}${next ? `<button class="btn" data-act="next">${t('learn.next', { title: lt(next, 'title') })}</button>` : ''}</div>` : ''}
     ${lesson.goal ? `<label class="check"><input type="checkbox" data-act="goal"${showGoal ? ' checked' : ''}> ${t('learn.showGoal')}</label>
@@ -1043,6 +1135,18 @@ $('#learn').addEventListener('click', e => {
     openFree();
   }
   else if (a === 'next') { const x = ALL[ALL.findIndex(x => x.def === lesson.def) + 1]; openLesson(x.def, x.challenge); }
+  else if (a === 'intro-continue' && lesson.def.id === 'intro' && lesson.step < lesson.def.concepts.length) {
+    lesson.introAcknowledged = lesson.step;
+    lesson.viewDirection = undefined;
+    refresh();
+  }
+  else if (a === 'intro-previous' && lesson.def.id === 'intro' && lesson.step > 0 && lesson.step <= lesson.def.concepts.length && !sketch) {
+    lesson.step--;
+    lesson.introAcknowledged = lesson.viewDirection = undefined;
+    renderLearn();
+    refresh();
+    home();
+  }
   else if (a === 'restart') openLesson(lesson.def, lesson.challenge, true);
 });
 // Glossary: hovering a <dfn data-term> word in the lesson text shows what it means.
@@ -1285,7 +1389,7 @@ function refresh(full = true) {
   grid.visible = !sketch;
   diffGroup.visible = !sketch && !cmd && !printMode; // differences are about the finished part, not a preview
   drawPrint();
-  originPlanes.forEach(p => (p.visible = pickingPlane || !!sketch?.picking));
+  originPlanes.forEach(p => (p.visible = pickingPlane || !!sketch?.picking || (lesson?.def.id === 'intro' && !sketch)));
   canvas.style.cursor = sketch?.tool ? 'crosshair' : '';
   if (!sketch?.tool) $('#readout').hidden = true;
   drawSketches();

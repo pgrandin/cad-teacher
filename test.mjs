@@ -8,6 +8,7 @@ import { LANGS } from './i18n.js';
 import { poses } from './assembly.js';
 import { overhangs, printMatrix } from './print.js';
 import { Vector3 } from './vendor/three.module.js';
+import { CUBE_VIEWS } from './view-cube.js';
 
 await cad.init(fileURLToPath(new URL('./vendor/replicad_single.wasm', import.meta.url)));
 const PI = Math.PI;
@@ -53,11 +54,35 @@ for (const l of [...LESSONS, ...CHALLENGES]) {
     for (const c of l.assembly) assert.ok(LESSONS.find(x => x.id === c.part)?.goal, `${l.id}: part ${c.part}`);
     continue;
   }
+  if (l.id === 'intro') { assert.deepEqual(l.start, []); assert.equal(l.goal, undefined); continue; }
   const r = cad.rebuild(l.goal);
   assert.deepEqual(r.errors, {}, `${l.id} goal has errors`);
   near(vol(l.goal), expected[l.id]);
   if (l.start) assert.deepEqual(cad.rebuild(l.start).errors, {}, `${l.id} start has errors`);
 }
+
+// The view cube covers every standard direction and its hit regions lie on the cube.
+assert.equal(new Set(CUBE_VIEWS.map(v => v.direction.join(','))).size, 26);
+for (const [kind, count] of [['face', 6], ['edge', 12], ['corner', 8]]) {
+  const views = CUBE_VIEWS.filter(v => v.kind === kind);
+  assert.equal(views.length, count);
+  for (const v of views) for (const p of v.points) {
+    assert.ok(p.every(n => Math.abs(n) === 1));
+    assert.ok(v.direction.every((n, i) => !n || n === p[i]));
+  }
+}
+const intro = LESSONS[0];
+assert.equal(intro.id, 'intro');
+assert.deepEqual(intro.concepts, ['X', 'Y', 'Z', 'origin', 'XY', 'XZ', 'YZ']);
+const tour = [
+  ...intro.concepts.map((_, introAcknowledged) => ({ introAcknowledged })),
+  { viewDirection: [0, 0, 1] }, { viewDirection: [1, 0, 1] },
+  ...['XY', 'XZ', 'YZ'].map(sketchBase => ({ mode: 'sketch', sketchBase })), { mode: 'model' },
+];
+intro.steps.forEach((check, i) => {
+  assert.equal(check(tour[i]), true, `intro step ${i + 1} accepts its action`);
+  assert.ok(!check(tour[(i + 1) % tour.length]), `intro step ${i + 1} waits for its action`);
+});
 
 // Parametric edit: change the first sketch and extrude of the "change" lesson start, later features must follow.
 const edited = structuredClone(LESSONS.find(l => l.id === 'change').start);
@@ -71,8 +96,9 @@ const chair = LESSONS.find(l => l.id === 'elf-chair').goal;
 assert.ok(!cad.sameShape(cad.metrics(cad.rebuild(chair.slice(0, -1)).body), cad.metrics(cad.rebuild(chair).body)), 'chair without fillets');
 
 // Differences: a block 2 mm too short misses 1600 mm³; a misplaced hole shows up on both sides.
-const goalBlock = cad.rebuild(LESSONS[0].goal).body;
-const short = cad.rebuild([LESSONS[0].goal[0], { ...LESSONS[0].goal[1], distance: 8 }]).body;
+const blockGoal = LESSONS.find(l => l.id === 'block').goal;
+const goalBlock = cad.rebuild(blockGoal).body;
+const short = cad.rebuild([blockGoal[0], { ...blockGoal[1], distance: 8 }]).body;
 let d = cad.diff(short, goalBlock);
 near(cad.metrics(d.missing).volume, 1600);
 assert.equal(d.extra, null);
@@ -88,20 +114,20 @@ assert.ok(cad.matches(holeGoal, holeGoal));
 near(cad.metrics(goalBlock).volume, 8000); // inputs survive
 
 // A fillet that is too big fails cleanly instead of crashing, with a translatable error.
-const bad = [...LESSONS[0].goal, { type: 'fillet', id: 'x', edges: LESSONS[1].goal[2].edges, r: 50 }];
+const bad = [...blockGoal, { type: 'fillet', id: 'x', edges: LESSONS.find(l => l.id === 'fillet').goal[2].edges, r: 50 }];
 assert.equal(cad.rebuild(bad).errors.x, 'err.filletFailed');
 near(cad.metrics(cad.rebuild(bad).body).volume, 8000);
 
 // Sketch on a side face (normal -Y) and a closed polyline.
-const side = [...LESSONS[0].goal,
+const side = [...blockGoal,
   { type: 'sketch', id: 'p', plane: { face: { n: [0, -1, 0], c: [0, -10, 5] } }, shapes: [{ kind: 'poly', pts: [[-5, 2], [5, 2], [0, 8]] }] },
   { type: 'extrude', id: 'q', sketch: 'p', distance: 4, op: 'join' }];
 near(vol(side), 8000 + 0.5 * 10 * 6 * 4);
 const m = cad.metrics(cad.rebuild(side).body);
 assert.ok(Math.abs(m.min[1] + 14) < 0.1, 'side extrude should grow toward -Y');
 
-assert.ok((await cad.stlOf(cad.rebuild(LESSONS[0].goal).body).arrayBuffer()).byteLength > 84);
-assert.ok((await cad.stepOf(cad.rebuild(LESSONS[0].goal).body).text()).startsWith('ISO-10303-21;'), 'STEP export');
+assert.ok((await cad.stlOf(cad.rebuild(blockGoal).body).arrayBuffer()).byteLength > 84);
+assert.ok((await cad.stepOf(cad.rebuild(blockGoal).body).text()).startsWith('ISO-10303-21;'), 'STEP export');
 // Assembly: a revolute joint puts the link's hole on the base pivot, faces touching, turning about the hole.
 const rimsOf = id => { const b = cad.rebuild([...LESSONS, ...CHALLENGES].find(l => l.id === id).goal).body; return b.edges.map(e => cad.rimRef(b, e.hashCode)).filter(Boolean); };
 const linkRim = rimsOf('robot-link').find(r => r.c[0] === -24 && r.n[2] === 1);
@@ -141,6 +167,37 @@ assert.ok(hang(goalOf('print-shelf').start, [0, -1, 0]) > 1000, 'bookshelf on it
 const upside = cad.metrics(cad.onBed(cad.rebuild(TABLE_GOAL()).body, [0, 0, 1]));
 assert.ok(Math.abs(upside.min[2]) < 1e-6 && Math.abs(upside.max[2] - 44) < 1e-6, 'onBed rests the part on z = 0');
 
+// Language selection: URL, saved choice, browser preference list, single-language fallback, English.
+const languageGlobals = ['navigator', 'location', 'localStorage'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
+try {
+  const cases = [
+    { search: '?lang=fr', saved: 'de', languages: ['es-ES'], expected: 'fr' },
+    { saved: 'fr', languages: ['en-US'], expected: 'fr' },
+    { languages: ['fr-CA', 'en-US'], expected: 'fr' },
+    { languages: ['de-DE', 'fr-FR'], expected: 'de' },
+    { languages: ['it-IT', 'es-MX', 'en-US'], expected: 'es' },
+    { languages: ['FR-fr'], expected: 'fr' },
+    { search: '?lang=it', saved: 'it', languages: ['de-DE'], expected: 'de' },
+    { language: 'fr-FR', expected: 'fr' },
+    { languages: [], language: 'de-AT', expected: 'de' },
+    { languages: ['ja-JP'], language: 'ja-JP', expected: 'en' },
+    { blocked: true, languages: ['es-ES'], expected: 'es' },
+    { expected: 'en' },
+  ];
+  for (const [i, c] of cases.entries()) {
+    const values = { navigator: { languages: c.languages, language: c.language }, location: { search: c.search || '' },
+      localStorage: { getItem() { if (c.blocked) throw Error('Storage blocked'); return c.saved; } } };
+    for (const [key, value] of Object.entries(values)) Object.defineProperty(globalThis, key, { configurable: true, value });
+    const selected = await import(`./i18n.js?language-test=${i}`);
+    assert.equal(selected.lang, c.expected, `language selection case ${i}`);
+  }
+} finally {
+  for (const [key, descriptor] of languageGlobals) {
+    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+    else delete globalThis[key];
+  }
+}
+
 // i18n: every language has every English key, with the same shape and placeholders.
 const { en } = LANGS;
 // Glossary words (<dfn data-term>) must be the same in every language.
@@ -156,10 +213,18 @@ for (const [code, d] of Object.entries(LANGS)) {
   }
 }
 for (const [, k] of Object.values(en).join(' ').matchAll(/data-term="([\w-]+)"/g)) assert.ok(en[`term.${k}.def`], `glossary: ${k}`);
+assert.equal(en['lesson.intro.stepTitles'].length, intro.steps.length);
+for (const [code, words] of Object.entries(LANGS)) {
+  assert.equal(words['lesson.intro.steps.simple'].length, intro.steps.length, `${code}: every intro step has both explanations`);
+  words['lesson.intro.steps.simple'].forEach((text, i) => {
+    assert.ok(text.trim(), `${code}: intro step ${i} needs a simple explanation`);
+    assert.notEqual(text, words['lesson.intro.steps'][i], `${code}: intro step ${i} needs its own simple explanation`);
+  });
+}
 for (const l of LESSONS) assert.equal(en[`lesson.${l.id}.steps`].length, l.steps.length, `${l.id}: one text per step`);
 for (const c of CHALLENGES) assert.ok(en[`challenge.${c.id}.brief`], `${c.id}: brief`);
 for (const c of COURSES) assert.ok(en[`course.${c}.title`], `course ${c}: title`);
-// Every explanation has a simple-words version (the default for kids).
+// Technical explanations keep a companion in simple words so kids learn the same terms.
 for (const k of Object.keys(en).filter(k => /^(course\.\w+\.intro|lesson\.[\w-]+\.(intro|outro)|term\.\w+\.def)$/.test(k))) assert.ok(en[k + '.simple'], `simple words: ${k}`);
 for (const file of ['./cad.js', './assembly.js'])
   for (const [k] of readFileSync(new URL(file, import.meta.url), 'utf8').matchAll(/err\.\w+/g)) assert.ok(k in en, `missing ${k}`);

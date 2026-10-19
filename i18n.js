@@ -12,7 +12,7 @@ const saved = () => { try { return localStorage.getItem(KEY); } catch { return n
 
 // ?lang=fr wins, then the last choice, then the browser's languages.
 export let lang = known(new URLSearchParams(globalThis.location?.search).get('lang')) || known(saved()) ||
-  (globalThis.navigator?.languages ?? []).map(known).find(Boolean) || 'en';
+  (globalThis.navigator?.languages ?? []).map(known).find(Boolean) || known(globalThis.navigator?.language) || 'en';
 
 export function setLang(l) {
   lang = l;
