@@ -18,6 +18,15 @@ const near = (a, b) => assert.ok(Math.abs(a - b) < 0.01 * b, `${a} != ${b}`);
 const area = pts => Math.abs(pts.reduce((s, p, i) => s + p[0] * pts[(i + 1) % pts.length][1] - pts[(i + 1) % pts.length][0] * p[1], 0)) / 2;
 // A gear tooth (Line shape from 1 mm inside a disc of radius r, 4 long, 4 → 2 wide): the part outside the disc.
 const toothOut = r => integrate(x => { const w = 2 - (x - r + 1) / 4; return 2 * w - 2 * Math.min(w, Math.sqrt(Math.max(0, r * r - x * x))); }, r - 1, r + 3);
+// Revolve volume of a profile drawn right of the axis (Pappus: area × the distance its centroid travels).
+const revolved = pts => 2 * PI * Math.abs(pts.reduce((s, p, i) => { const q = pts[(i + 1) % pts.length]; return s + (p[0] + q[0]) * (p[0] * q[1] - q[0] * p[1]); }, 0)) / 6;
+// Area a fillet of radius r takes off the corner b of an outline a → b → c.
+const filletCut = (a, b, c, r) => {
+  const u = [a[0] - b[0], a[1] - b[1]], v = [c[0] - b[0], c[1] - b[1]];
+  const th = Math.acos((u[0] * v[0] + u[1] * v[1]) / Math.hypot(...u) / Math.hypot(...v));
+  return r * r / Math.tan(th / 2) - r * r * (PI - th) / 2;
+};
+const KNIGHT_HEAD = [[-9, 7], [9, 7], [6, 15], [14, 22], [15, 27], [6, 34], [3, 40], [-1, 35], [-7, 30], [-10, 18]];
 // Material a thread removes: a triangle 0.4·p deep and 0.8·p wide, spun around at its centroid, len/p turns.
 const threadCut = (r, p, len, out) => (0.4 * p) ** 2 * 2 * PI * (r + (out ? -1 : 1) * 0.4 * p / 3) * len / p;
 
@@ -51,20 +60,33 @@ const expected = {
   'print-flip': 4 * PI * 9 * 40 + 80 * 50 * 4 - 4 * (25 - 25 * PI / 4) * 4,
   'print-holes': 30 * 10 * 20 - PI * 9 * 20 - 50 * 10,
   'print-shelf': 50 * 20 * 70 - 3 * 44 * 18 * 16,
-  // revolved base + collar, then the head outline extruded 5 mm each way
-  'adv-knight': PI * (256 * 4 + 144 * 2) + 10 * area([[-9, 6], [9, 6], [6, 15], [14, 22], [15, 27], [6, 34], [3, 40], [-1, 35], [-7, 30], [-10, 18]]),
+  // revolved base (Pappus), the head outline extruded 5 mm each way, minus the eye and the rounded nose tip
+  'adv-knight': revolved([[0, 0], [16, 0], [16, 3], [13, 5], [11, 5], [11, 7], [0, 7]]) + 10 * area(KNIGHT_HEAD) - PI * 1.25 ** 2 * 10 - 10 * filletCut([14, 22], [15, 27], [6, 34], 2),
   // blade + guard + grip + pommel (minus where it overlaps the grip), 4 thick; chamfer triangles along the
-  // 4 blade edges (ignores the small corner overlaps, ~0.2%)
-  'adv-sword': (384 + 96 + 64 + 16 * PI - integrate(x => Math.max(0, Math.sqrt(16 - x * x) - 2), -2, 2)) * 4 - 1.5 ** 2 / 2 * (120 + 2 * Math.hypot(3, 8)),
-  'adv-facade': 60 * 64 * 4 - 12 * 8 * 10 * 2 - 10 * 16 * 2,
-  'adv-gear': PI * 225 * 5 + 12 * toothOut(15) * 5 - PI * 6.25 * 5,
-  'adv-gear-small': PI * 100 * 5 + 8 * toothOut(10) * 5 - PI * 6.25 * 5,
-  // hex head + shaft - the groove: its triangle (0.8 deep, 1.6 wide) spun around at its centroid, 10 turns
-  'adv-screw': 224 * 6 + PI * 25 * 20 - threadCut(5, 2, 20, true),
-  'adv-nut': 224 * 8 - PI * 4.5 ** 2 * 8 - threadCut(4.5, 2, 8, false),
-  // plate + the 3/4 of the knuckle tube outside it, minus the 2 slots (21.5 mm of it), minus the pin hole
-  'adv-hinge': 40 * 20 * 3 + 40 * 6.75 * PI - 21.5 * (12 + 6.75 * PI) - PI * 1.75 ** 2 * 18.5,
-  'adv-shield': area([[-20, 20], [20, 20], [20, -5], [12, -20], [0, -28], [-12, -20], [-20, -5]]) * 3 + (6 * 30 + 24 * 6 - 36) * 1.5,
+  // 4 blade edges (ignores the small corner overlaps, ~0.2%); fuller, 4 rounded guard corners, lanyard hole,
+  // 6 grip grooves
+  'adv-sword': (384 + 96 + 64 + 16 * PI - integrate(x => Math.max(0, Math.sqrt(16 - x * x) - 2), -2, 2)) * 4 - 1.5 ** 2 / 2 * (120 + 2 * Math.hypot(3, 8))
+    - 48 * 1 - 4 * (1 - PI / 4) * 1.5 ** 2 * 4 - PI * 1.5 ** 2 * 4 - 6 * 4 * 0.8 * 0.6,
+  // walls - 12 pointed windows - pointed door (2 deep) + 45° gable roof and front ledge (40 long) + the
+  // chimney above the walls, minus the part of it inside the roof (roof top is 72 - y over y = 4..8)
+  'adv-building': 40 * 24 * 60 - 12 * 28 * 2 - 63 * 2 + 144 * 40 + 4.5 * 40 + 4 * 4 * 16 - 4 * integrate(y => 12 - y, 4, 8),
+  // gear: disc, teeth, hub; minus axle, keyway (the part outside the axle), 4 lightening holes
+  'adv-gear': PI * 225 * 5 + 12 * toothOut(15) * 5 + PI * 36 * 3 - PI * 6.25 * 8
+    - 8 * (4 - integrate(x => Math.max(0, Math.sqrt(6.25 - x * x) - 2), -1, 1)) - 4 * PI * 6.25 * 5,
+  'adv-gear-small': PI * 100 * 5 + 8 * toothOut(10) * 5 + PI * 25 * 3 - PI * 6.25 * 8,
+  // hex head + shaft + the fillet ring under the head (spandrel spun at its centroid) - bed chamfers
+  // (ignoring the corner overlaps) - the thread on the 19 mm left above the fillet
+  'adv-screw': 224 * 6 + PI * 25 * 20 + (1 - PI / 4) * 2 * PI * (5 + 0.2234) - 0.5 * (4 * Math.hypot(4, 8) + 2 * 10) - threadCut(5, 2, 19, true),
+  // hub + 2 wings 3 thick (minus where they sit inside the hub) - rounded wing tips - hole - thread
+  'adv-nut': PI * 64 * 8 + 2 * 3 * area([[6, 0], [14, 0], [17, 12], [12, 12], [6, 8]]) - 2 * 8 * integrate(y => Math.sqrt(64 - y * y) - 6, -1.5, 1.5)
+    - 2 * 3 * filletCut([14, 0], [17, 12], [12, 12], 2) - PI * 4.5 ** 2 * 8 - threadCut(4.5, 2, 8, false),
+  // plate + the 3/4 of the knuckle tube outside it, minus the 2 slots (21.5 mm of it), the pin hole, 2 rounded
+  // corners, 2 screw holes and their countersinks (1 mm triangle spun around)
+  'adv-hinge': 40 * 20 * 3 + 40 * 6.75 * PI - 21.5 * (12 + 6.75 * PI) - PI * 1.75 ** 2 * 18.5
+    - 2 * (16 - 4 * PI) * 3 - 2 * PI * 1.75 ** 2 * 3 - 2 * 0.5 * 2 * PI * (1.75 + 1 / 3),
+  // outline + cross + boss (minus where the boss stands on the cross)
+  'adv-shield': area([[-20, 20], [20, 20], [20, -5], [12, -20], [0, -28], [-12, -20], [-20, -5]]) * 3 + (6 * 30 + 24 * 6 - 36) * 1.5
+    + PI * 25 * 2.5 - 1.5 * integrate(x => { const s = Math.sqrt(25 - x * x); return Math.abs(x) <= 3 ? 2 * s : Math.max(0, Math.min(9, s) - 3); }, -5, 5),
 };
 
 for (const l of [...LESSONS, ...CHALLENGES]) {
@@ -107,10 +129,13 @@ intro.steps.forEach((check, i) => {
 const nut = LESSONS.find(l => l.id === 'adv-nut').goal;
 const fromBelow = nut.map(f => (f.type === 'hole' ? { ...f, face: { n: [0, 0, -1], c: [0, 0, 0] } } : f));
 near(vol(fromBelow), expected['adv-nut']);
-near(vol(nut.map(f => (f.type === 'thread' ? { ...f, pitch: 1.5 } : f))), 224 * 8 - PI * 4.5 ** 2 * 8 - threadCut(4.5, 1.5, 8, false));
+near(vol(nut.map(f => (f.type === 'thread' ? { ...f, pitch: 1.5 } : f))), expected['adv-nut'] + threadCut(4.5, 2, 8, false) - threadCut(4.5, 1.5, 8, false));
 assert.equal(cad.rebuild(nut.map(f => (f.type === 'thread' ? { ...f, pitch: 0.2 } : f))).errors.t1, 'err.threadPitch');
-const drilled = cad.rebuild(nut.slice(0, 3)).body;
-assert.deepEqual(cad.cylRef(drilled, drilled.faces.find(f => f.geomType === 'CYLINDRE').hashCode), nut.at(-1).face, 'a hole drilled down is saved pointing up');
+const drilled = cad.rebuild(nut.slice(0, -1)).body;
+assert.deepEqual(drilled.faces.map(f => cad.cylRef(drilled, f.hashCode)).find(r => r?.r === 4.5), nut.at(-1).face, 'a hole drilled down is saved pointing up');
+// A lone extruded cylinder (OpenCascade makes it in two halves) can still be threaded.
+const rod = [{ type: 'sketch', id: 's', plane: { base: 'XY' }, shapes: [{ kind: 'circle', x: 0, y: 0, d: 10 }] }, { type: 'extrude', id: 'e', sketch: 's', distance: -20, op: 'join' }];
+near(vol([...rod, { type: 'thread', id: 't', face: { c: [0, 0, -10], a: [0, 0, 1], r: 5 }, pitch: 2 }]), PI * 25 * 20 - threadCut(5, 2, 20, true));
 
 // Parametric edit: change the first sketch and extrude of the "change" lesson start, later features must follow.
 const edited = structuredClone(LESSONS.find(l => l.id === 'change').start);

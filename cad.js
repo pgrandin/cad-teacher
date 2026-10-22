@@ -75,7 +75,7 @@ function cylinderOf(f) {
   const dn = add(n1, n2, -1), s = dot(add(p1, p2, -1), dn) / dot(dn, dn); // p - s·n is on the axis
   const a = unit(cross(n1, n2)), q = add(p1, n1, -s);
   const [t0, t1] = [0, 1].map(v => dot(add(f.pointOnSurface(0, v).toTuple(), q, -1), a)).sort((x, y) => x - y);
-  return { q, a, r: Math.abs(s), out: s > 0, t0, t1 };
+  return { q, a, r: Math.abs(s), out: s > 0, t0, t1, seam: p1 };
 }
 
 // Stored like faces: by geometry (middle of the axis, direction, radius), re-found after every rebuild.
@@ -113,19 +113,33 @@ function cutThread(body, c, p) {
   // The helix runs one turn past each end, so the groove is open there; boxes trim it to the face.
   const w = c.r + 10, h = 3 * p + 1;
   g = g.cut(R.makeBox([-w, -w, -h], [w, w, 0])).cut(R.makeBox([-w, -w, len], [w, w, len + h]));
-  // Built along Z at the origin, then moved onto the axis.
-  const axis = cross([0, 0, 1], c.a), sin = Math.hypot(...axis);
-  if (sin > 1e-9) g = g.rotate(Math.atan2(sin, c.a[2]) * 180 / Math.PI, [0, 0, 0], axis.map(x => x / sin));
-  else if (c.a[2] < 0) g = g.rotate(180, [0, 0, 0], [1, 0, 0]);
-  g = g.translate(add(c.q, c.a, c.t0));
-  // OpenCascade's cut between a helical groove and a cylinder often silently does nothing, or too much,
-  // depending on where the helix starts around the face. The start angle doesn't matter to the thread, and
-  // what the groove removes is known exactly (its triangle, spun around), so try angles until it adds up.
-  // ponytail: needs solid material all around the face; a cross hole through a screw fails the check.
+  // OpenCascade often gets a helical groove against a cylinder wrong (cuts nothing, or too much), depending
+  // on how the two line up. So the groove never meets the kid's part directly: it is cut into (or added to)
+  // a plain cylinder built here along Z, where the seams line up the way that works, and that threaded
+  // cylinder is swapped in, its seam on the face's seam. A shaft loses its plain core and gets the threaded
+  // one; a hole is filled, then cut again with the threaded tool. What the groove removes is known exactly
+  // (its triangle, spun around), so the volume tells whether it worked; other start angles are the fallback.
+  // ponytail: a hollow shaft or a cross hole through it gets filled in, fails the check, and errors.
+  const core = R.makeCylinder(c.r, len, [0, 0, 0], [0, 0, 1]);
+  // Z onto the axis, turned so the cylinder's seam (local +X) lies on the face's seam.
+  const axis = cross([0, 0, 1], c.a), sin = Math.hypot(...axis), ax = axis.map(x => x / (sin || 1));
+  let x = [1, 0, 0];
+  if (sin > 1e-9) x = add(add(x.map(v => v * c.a[2]), cross(ax, x), sin), ax, dot(ax, x) * (1 - c.a[2])); // Rodrigues
+  const toSeam = add(c.seam, c.q, -1), seam = Math.atan2(dot(cross(x, toSeam), c.a), dot(x, toSeam)) * 180 / Math.PI;
+  const place = s => {
+    s = s.rotate(seam, [0, 0, 0], [0, 0, 1]);
+    if (sin > 1e-9) s = s.rotate(Math.atan2(sin, c.a[2]) * 180 / Math.PI, [0, 0, 0], ax);
+    else if (c.a[2] < 0) s = s.rotate(180, [0, 0, 0], [1, 0, 0]);
+    return s.translate(add(c.q, c.a, c.t0));
+  };
   const want = k * k * 2 * Math.PI * (c.r + (c.out ? -k : k) / 3) * len / p, before = R.measureVolume(body);
-  for (let deg = 0; deg < 360; deg += 36) {
+  const plain = place(core.clone());
+  // ponytail: 5 tries at most (each takes a second or more); lessons need one or two.
+  for (let deg = 0; deg < 360; deg += 72) {
     try {
-      const b = body.clone().cut(g.clone().rotate(deg, c.q, c.a));
+      const turned = g.clone().rotate(deg, [0, 0, 0], [0, 0, 1]);
+      const threaded = place(c.out ? core.clone().cut(turned) : core.clone().fuse(turned));
+      const b = c.out ? body.clone().cut(plain.clone()).fuse(threaded) : body.clone().fuse(plain.clone()).cut(threaded);
       if (Math.abs(before - R.measureVolume(b) - want) < 1e-3 * want) return clean(b);
     } catch { /* try the next angle */ }
   }
@@ -170,9 +184,9 @@ function revolveSketch(sk, pl, axis, angle) {
   }).reduce((a, b) => clean(a.fuse(b)));
 }
 
-// Pattern copies the material another feature added or removed: in a grid along world X/Y, or around
+// Pattern copies the material another feature added or removed: in a grid along world X/Y/Z, or around
 // the vertical axis through the origin.
-// ponytail: fixed pattern directions (X/Y, Z axis); Fusion lets you pick any edge or axis.
+// ponytail: fixed pattern directions (X/Y/Z, Z axis); Fusion lets you pick any edge or axis.
 function patternCopies(tool, f) {
   const copies = [];
   if (f.kind === 'circle') {
@@ -180,9 +194,10 @@ function patternCopies(tool, f) {
     if (!(n >= 2)) throw new Error('err.patternCount');
     for (let k = 1; k < n; k++) copies.push(tool.clone().rotate(360 * k / n, [0, 0, 0], [0, 0, 1]));
   } else {
-    const nx = Math.round(f.nx), ny = Math.round(f.ny);
-    if (!(nx >= 1 && ny >= 1 && nx * ny >= 2)) throw new Error('err.patternCount');
-    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) if (i || j) copies.push(tool.clone().translate([i * f.dx, j * f.dy, 0]));
+    const nx = Math.round(f.nx), ny = Math.round(f.ny), nz = Math.round(f.nz ?? 1); // older designs have no Z
+    if (!(nx >= 1 && ny >= 1 && nz >= 1 && nx * ny * nz >= 2)) throw new Error('err.patternCount');
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++)
+      if (i || j || k) copies.push(tool.clone().translate([i * f.dx, j * f.dy, k * (f.dz || 0)]));
   }
   return copies.reduce((a, b) => a.fuse(b));
 }
@@ -201,7 +216,7 @@ export function rebuild(features) {
     if (op === 'cut') {
       if (!body) throw new Error('err.nothingToCut');
       body = clean(body.cut(solid));
-    } else body = body ? clean(body.fuse(solid)) : solid;
+    } else body = clean(body ? body.fuse(solid) : solid); // a lone cylinder comes in two halves until cleaned
   };
   for (const f of features) {
     try {

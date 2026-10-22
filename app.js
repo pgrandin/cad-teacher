@@ -474,7 +474,7 @@ const DEFAULTS = {
   hole: () => ({ face: null, x: 0, y: 0, d: 6, depth: 0 }),
   thread: () => ({ face: null, pitch: 2 }),
   revolve: i => ({ sketch: defaultSketch(i), axis: 'v', angle: 360, op: 'join' }),
-  pattern: i => ({ of: patternable(i).at(-1)?.[0].id || '', kind: 'rect', nx: 2, dx: 10, ny: 1, dy: 10, n: 6 }),
+  pattern: i => ({ of: patternable(i).at(-1)?.[0].id || '', kind: 'rect', nx: 2, dx: 10, ny: 1, dy: 10, nz: 1, dz: 10, n: 6 }),
 };
 
 function startCommand(type, index = features.length, feature = null) {
@@ -897,7 +897,8 @@ function renderDialog() {
       select('pattern.kind', 'kind', f.kind, [['rect', t('pattern.rect')], ['circle', t('pattern.circle')]]) +
       (f.kind === 'circle'
         ? `<p class="note">${t('pattern.circleNote')}</p>` + num('pattern.n', f.n, 'data-k="n"')
-        : num('pattern.nx', f.nx, 'data-k="nx"') + num('pattern.dx', f.dx, 'data-k="dx"') + num('pattern.ny', f.ny, 'data-k="ny"') + num('pattern.dy', f.dy, 'data-k="dy"'));
+        : num('pattern.nx', f.nx, 'data-k="nx"') + num('pattern.dx', f.dx, 'data-k="dx"') + num('pattern.ny', f.ny, 'data-k="ny"') + num('pattern.dy', f.dy, 'data-k="dy"') +
+          num('pattern.nz', f.nz ?? 1, 'data-k="nz"') + num('pattern.dz', f.dz ?? 10, 'data-k="dz"'));
   } else if (f.type === 'thread') {
     body = `<p class="note">${t(f.face ? 'thread.picked' : 'thread.pick')}</p>` + num('thread.pitch', f.pitch, 'data-k="pitch" step="0.5"');
   } else if (f.type === 'hole') {

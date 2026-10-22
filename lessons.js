@@ -64,16 +64,20 @@ const T_SHAPE = [
 ];
 const FRONT = c => ({ face: { n: [0, -1, 0], c } });
 const SIDE_BLOCK = block(30, 10, 20);
-// Hex for the screw head and the nut: drawn with Line on the 1 mm grid, so nearly (not exactly) regular.
+// Hex for the screw head: drawn with Line on the 1 mm grid, so nearly (not exactly) regular.
 const HEX = poly([9, 0], [5, 8], [-5, 8], [-9, 0], [-5, -8], [5, -8]);
-// A gear: a disc, one tooth poking out of it, the tooth patterned around, an axle hole.
-const gear = (d, n) => [
+// A circle edge, found by a point near it.
+const arc = (x, y, z) => ({ m: [x, y, z], g: 'CIRCLE' });
+// A gear: a disc, one tooth poking out of it patterned around, a hub on top, an axle hole through both.
+const gear = (d, n, hub) => [
   { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [circle(0, 0, d)] },
   { type: 'extrude', id: 'e1', sketch: 's1', distance: 5, op: 'join' },
   { type: 'sketch', id: 's2', plane: { base: 'XY' }, shapes: [poly([d / 2 - 1, -2], [d / 2 + 3, -1], [d / 2 + 3, 1], [d / 2 - 1, 2])] },
   { type: 'extrude', id: 'e2', sketch: 's2', distance: 5, op: 'join' },
   { type: 'pattern', id: 'p1', of: 'e2', kind: 'circle', n },
-  { type: 'hole', id: 'h1', face: top(5), x: 0, y: 0, d: 5, depth: 0 },
+  { type: 'sketch', id: 's3', plane: { face: top(5) }, shapes: [circle(0, 0, hub)] },
+  { type: 'extrude', id: 'e3', sketch: 's3', distance: 3, op: 'join' },
+  { type: 'hole', id: 'h1', face: top(8), x: 0, y: 0, d: 5, depth: 0 },
 ];
 const TOP_HOLE = { type: 'hole', id: 'h1', face: top(20), x: 10, y: 0, d: 6, depth: 0 };
 
@@ -314,21 +318,26 @@ export const LESSONS = [
     steps: [printOn, printClean],
   },
   {
-    // Revolve the base, draw the head with Line on the same wall, extrude it both ways so it is centered.
+    // Revolve a base with a sloped skirt, draw the head with Line on the same wall, extrude it both ways so
+    // it is centered, then drill the eye through and round the nose.
     id: 'adv-knight',
     course: 'advanced',
     start: [],
     goal: [
-      { type: 'sketch', id: 's1', plane: { base: 'XZ' }, shapes: [rect(8, 2, 16, 4), rect(6, 5, 12, 2)] },
+      { type: 'sketch', id: 's1', plane: { base: 'XZ' }, shapes: [poly([0, 0], [16, 0], [16, 3], [13, 5], [11, 5], [11, 7], [0, 7])] },
       { type: 'revolve', id: 'r1', sketch: 's1', axis: 'v', angle: 360, op: 'join' },
-      { type: 'sketch', id: 's2', plane: { base: 'XZ' }, shapes: [poly([-9, 6], [9, 6], [6, 15], [14, 22], [15, 27], [6, 34], [3, 40], [-1, 35], [-7, 30], [-10, 18])] },
+      { type: 'sketch', id: 's2', plane: { base: 'XZ' }, shapes: [poly([-9, 7], [9, 7], [6, 15], [14, 22], [15, 27], [6, 34], [3, 40], [-1, 35], [-7, 30], [-10, 18])] },
       { type: 'extrude', id: 'e1', sketch: 's2', distance: 5, op: 'join' },
       { type: 'extrude', id: 'e2', sketch: 's2', distance: -5, op: 'join' },
+      // On the head's front side, sketch X is world X and sketch Y is height.
+      { type: 'hole', id: 'h1', face: { n: [0, -1, 0], c: [2, -5, 23] }, x: 8, y: 29, d: 2.5, depth: 0 },
+      { type: 'fillet', id: 'f1', edges: [edge(15, 0, 27)], r: 2 },
     ],
-    steps: [made('revolve', 1), drew('poly'), made('extrude', 1), matches],
+    steps: [made('revolve', 1), drew('poly'), made('extrude', 1), made('extrude', 2), made('hole', 1), matches],
   },
   {
-    // Lies flat to print: one sketch of overlapping shapes, a chamfer on the top edges of the blade only.
+    // Lies flat to print: one sketch of overlapping shapes, then only top-side details (chamfer, fuller,
+    // grip grooves), so the bottom stays flat on the bed.
     id: 'adv-sword',
     course: 'advanced',
     start: [],
@@ -336,31 +345,53 @@ export const LESSONS = [
       { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [poly([-3, 10], [3, 10], [3, 70], [0, 78], [-3, 70]), rect(0, 8, 24, 4), rect(0, -2, 4, 16), circle(0, -12, 8)] },
       { type: 'extrude', id: 'e1', sketch: 's1', distance: 4, op: 'join' },
       { type: 'chamfer', id: 'c1', edges: [edge(3, 40, 4), edge(-3, 40, 4), edge(1.5, 74, 4), edge(-1.5, 74, 4)], r: 1.5 },
+      { type: 'sketch', id: 's2', plane: { face: top(4) }, shapes: [rect(0, 40, 1, 48)] },
+      { type: 'extrude', id: 'e2', sketch: 's2', distance: -1, op: 'cut' },
+      { type: 'fillet', id: 'f1', edges: [edge(12, 6, 2), edge(12, 10, 2), edge(-12, 6, 2), edge(-12, 10, 2)], r: 1.5 },
+      { type: 'hole', id: 'h1', face: top(4), x: 0, y: -12, d: 3, depth: 0 },
+      { type: 'sketch', id: 's3', plane: { face: { n: [0, 0, 1], c: [0, -2, 4] } }, shapes: [rect(0, -8, 4, 0.8)] },
+      { type: 'extrude', id: 'e3', sketch: 's3', distance: -0.6, op: 'cut' },
+      { type: 'pattern', id: 'p1', of: 'e3', kind: 'rect', nx: 1, dx: 10, ny: 6, dy: 2.4 },
     ],
-    steps: [drew('poly'), made('extrude', 1), matches],
+    steps: [drew('poly'), made('extrude', 1), made('chamfer', 1), made('extrude', 2), made('fillet', 1), made('hole', 1), matches],
   },
   {
-    // Flat relief, printed face up: one window cut, patterned into 4 columns × 3 floors, then a door.
-    id: 'adv-facade',
+    // A town house standing up, printed as it stands. Windows and door have 45° pointed tops and the roof
+    // is a 45° gable, so nothing overhangs: the lesson ends with a clean print check.
+    id: 'adv-building',
     course: 'advanced',
     start: [],
     goal: [
-      { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [rect(0, 32, 60, 64)] },
-      { type: 'extrude', id: 'e1', sketch: 's1', distance: 4, op: 'join' },
-      { type: 'sketch', id: 's2', plane: { face: top(4) }, shapes: [rect(-21, 26, 8, 10)] },
+      { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [rect(0, 0, 40, 24)] },
+      { type: 'extrude', id: 'e1', sketch: 's1', distance: 60, op: 'join' },
+      // On the front face, sketch X is world X and sketch Y is height.
+      { type: 'sketch', id: 's2', plane: FRONT([0, -12, 30]), shapes: [poly([-14, 16], [-10, 16], [-10, 22], [-12, 24], [-14, 22])] },
       { type: 'extrude', id: 'e2', sketch: 's2', distance: -2, op: 'cut' },
-      { type: 'pattern', id: 'p1', of: 'e2', kind: 'rect', nx: 4, dx: 14, ny: 3, dy: 14 },
-      { type: 'sketch', id: 's3', plane: { face: top(4) }, shapes: [rect(0, 8, 10, 16)] },
+      { type: 'pattern', id: 'p1', of: 'e2', kind: 'rect', nx: 4, dx: 8, ny: 1, dy: 10, nz: 3, dz: 12 },
+      { type: 'sketch', id: 's3', plane: FRONT([0, -12, 30]), shapes: [poly([-3, 0], [3, 0], [3, 9], [0, 12], [-3, 9])] },
       { type: 'extrude', id: 'e3', sketch: 's3', distance: -2, op: 'cut' },
+      // On the YZ wall, sketch X is world Y: the gable roof and a 45° ledge along the front, both ways from the middle.
+      { type: 'sketch', id: 's4', plane: { base: 'YZ' }, shapes: [poly([-12, 60], [12, 60], [0, 72]), poly([-12, 51], [-12, 54], [-15, 54])] },
+      { type: 'extrude', id: 'e4', sketch: 's4', distance: 20, op: 'join' },
+      { type: 'extrude', id: 'e5', sketch: 's4', distance: -20, op: 'join' },
+      { type: 'sketch', id: 's5', plane: { base: 'XY' }, shapes: [rect(10, 6, 4, 4)] },
+      { type: 'extrude', id: 'e6', sketch: 's5', distance: 76, op: 'join' },
     ],
-    steps: [made('extrude', 1), made('extrude', 2), made('pattern', 1), matches],
+    steps: [made('extrude', 1), made('extrude', 2), made('pattern', 1), made('extrude', 3), made('extrude', 5), made('extrude', 6), s => s.match && printClean(s)],
   },
   {
+    // Big gear: hub, keyed axle hole, and 4 holes patterned around to make it lighter.
     id: 'adv-gear',
     course: 'advanced',
     start: [],
-    goal: gear(30, 12),
-    steps: [made('extrude', 1), drew('poly'), made('extrude', 2), made('pattern', 1), matches],
+    goal: [
+      ...gear(30, 12, 12),
+      { type: 'sketch', id: 's4', plane: { face: top(8) }, shapes: [rect(0, 3, 2, 2)] },
+      { type: 'extrude', id: 'e4', sketch: 's4', distance: -8, op: 'cut' },
+      { type: 'hole', id: 'h2', face: top(5), x: 9, y: 0, d: 5, depth: 0 },
+      { type: 'pattern', id: 'p2', of: 'h2', kind: 'circle', n: 4 },
+    ],
+    steps: [made('extrude', 1), drew('poly'), made('pattern', 1), made('extrude', 3), made('hole', 1), made('extrude', 4), matches],
   },
   {
     id: 'adv-screw',
@@ -371,26 +402,35 @@ export const LESSONS = [
       { type: 'extrude', id: 'e1', sketch: 's1', distance: 6, op: 'join' },
       { type: 'sketch', id: 's2', plane: { face: top(6) }, shapes: [circle(0, 0, 10)] },
       { type: 'extrude', id: 'e2', sketch: 's2', distance: 20, op: 'join' },
-      { type: 'thread', id: 't1', face: { c: [0, 0, 16], a: [0, 0, 1], r: 5 }, pitch: 2 },
+      // Rounding the inside corner under the head makes the screw much stronger; the 45° chamfer on the
+      // bed edges stops the first layer from squishing out (elephant's foot).
+      { type: 'fillet', id: 'f1', edges: [arc(-5, 0, 6)], r: 1 },
+      { type: 'chamfer', id: 'c1', edges: [edge(7, 4, 0), edge(0, 8, 0), edge(-7, 4, 0), edge(-7, -4, 0), edge(0, -8, 0), edge(7, -4, 0)], r: 1 },
+      { type: 'thread', id: 't1', face: { c: [0, 0, 16.5], a: [0, 0, 1], r: 5 }, pitch: 2 },
     ],
-    steps: [drew('poly'), made('extrude', 1), made('extrude', 2), opened('thread'), matches],
+    steps: [drew('poly'), made('extrude', 1), made('extrude', 2), made('fillet', 1), made('chamfer', 1), opened('thread'), matches],
   },
   {
-    // The screw's thread is 0.8 deep (5 → 4.2 mm radius); a 9 mm hole leaves 0.3 mm of clearance all round.
+    // A wing nut turns by hand. Hub + two wings (Line on the XZ wall, extruded both ways), a 9 mm hole:
+    // the screw's thread is 0.8 deep (5 → 4.2 mm radius), so that leaves 0.3 mm of clearance all round.
     id: 'adv-nut',
     course: 'advanced',
     start: [],
     goal: [
-      { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [HEX] },
+      { type: 'sketch', id: 's1', plane: { base: 'XY' }, shapes: [circle(0, 0, 16)] },
       { type: 'extrude', id: 'e1', sketch: 's1', distance: 8, op: 'join' },
+      { type: 'sketch', id: 's2', plane: { base: 'XZ' }, shapes: [poly([6, 0], [14, 0], [17, 12], [12, 12], [6, 8]), poly([-6, 0], [-6, 8], [-12, 12], [-17, 12], [-14, 0])] },
+      { type: 'extrude', id: 'e2', sketch: 's2', distance: 1.5, op: 'join' },
+      { type: 'extrude', id: 'e3', sketch: 's2', distance: -1.5, op: 'join' },
+      { type: 'fillet', id: 'f1', edges: [edge(17, 0, 12), edge(-17, 0, 12)], r: 2 },
       { type: 'hole', id: 'h1', face: top(8), x: 0, y: 0, d: 9, depth: 0 },
       { type: 'thread', id: 't1', face: { c: [0, 0, 4], a: [0, 0, 1], r: 4.5 }, pitch: 2 },
     ],
-    steps: [made('extrude', 1), made('hole', 1), opened('thread'), matches],
+    steps: [made('extrude', 1), drew('poly'), made('extrude', 3), made('fillet', 1), made('hole', 1), opened('thread'), matches],
   },
   {
-    // A leaf: plate + a knuckle tube along its edge, two slots cut out of the tube, a pin hole through.
-    // Two identical leaves interlock: one slides by a slot and turns over (next lesson).
+    // A leaf: plate + a knuckle tube along its edge, two slots cut out of the tube, a pin hole through,
+    // rounded corners and two countersunk screw holes. Two identical leaves interlock (next lesson).
     id: 'adv-hinge',
     course: 'advanced',
     start: [],
@@ -404,8 +444,13 @@ export const LESSONS = [
       { type: 'extrude', id: 'e3', sketch: 's3', distance: 10, op: 'cut' },
       { type: 'pattern', id: 'p1', of: 'e3', kind: 'rect', nx: 2, dx: 20, ny: 1, dy: 10 },
       { type: 'hole', id: 'h1', face: { n: [-1, 0, 0], c: [0, -8, 2] }, x: 0, y: 3, d: 3.5, depth: 0 },
+      { type: 'fillet', id: 'f1', edges: [edge(0, -20, 1.5), edge(40, -20, 1.5)], r: 4 },
+      { type: 'hole', id: 'h2', face: top(3), x: 10, y: -12, d: 3.5, depth: 0 },
+      { type: 'pattern', id: 'p2', of: 'h2', kind: 'rect', nx: 2, dx: 20, ny: 1, dy: 10 },
+      // Countersinks, so flat screw heads sit flush.
+      { type: 'chamfer', id: 'c1', edges: [arc(8.25, -12, 3), arc(28.25, -12, 3)], r: 1 },
     ],
-    steps: [made('extrude', 1), made('extrude', 2), made('extrude', 3), made('pattern', 1), matches],
+    steps: [made('extrude', 1), made('extrude', 2), made('extrude', 3), made('pattern', 1), made('hole', 1), made('fillet', 1), made('pattern', 2), matches],
   },
   {
     id: 'adv-hinge-joint',
@@ -491,7 +536,7 @@ export const CHALLENGES = [
     ],
   },
   {
-    // A heater shield: Line outline, a cross on its front.
+    // A heater shield: Line outline, a cross on its front, a round boss in the middle.
     id: 'adv-shield',
     course: 'advanced',
     goal: [
@@ -499,8 +544,10 @@ export const CHALLENGES = [
       { type: 'extrude', id: 'e1', sketch: 's1', distance: 3, op: 'join' },
       { type: 'sketch', id: 's2', plane: { face: top(3) }, shapes: [rect(0, 0, 6, 30), rect(0, 6, 24, 6)] },
       { type: 'extrude', id: 'e2', sketch: 's2', distance: 1.5, op: 'join' },
+      { type: 'sketch', id: 's3', plane: { face: top(3) }, shapes: [circle(0, 0, 10)] },
+      { type: 'extrude', id: 'e3', sketch: 's3', distance: 2.5, op: 'join' },
     ],
   },
   // Same tooth, fewer of them: it meshes with the 12-tooth gear and turns 1.5 times faster.
-  { id: 'adv-gear-small', course: 'advanced', goal: gear(20, 8) },
+  { id: 'adv-gear-small', course: 'advanced', goal: gear(20, 8, 10) },
 ];
