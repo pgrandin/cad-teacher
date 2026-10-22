@@ -45,3 +45,25 @@ class DesignWorkflowTests(BrowserTest):
         expect(self.page.locator("html")).to_have_attribute("lang", "fr")
         self.page.locator('#learn [data-act="back"]').click()
         expect(self.page.locator("#learn .course-card")).to_have_count(6)
+
+    def test_correct_goal_completes_and_saves_the_lesson(self):
+        steps = self.page.evaluate("""async () => {
+            const { LESSONS } = await import('./lessons.js');
+            const lesson = LESSONS.find(l => l.id === 'hole');
+            localStorage.setItem('cad-teacher-work:hole', JSON.stringify({
+                features: lesson.goal, step: lesson.steps.length - 1, lessonVersion: lesson.version
+            }));
+            return lesson.steps.length;
+        }""")
+        self.page.locator('[data-open="hole"]').click()
+        expect(self.page.locator("#learn .win")).to_be_visible()
+        self.assertIn("hole", self.page.evaluate("JSON.parse(localStorage.getItem('cad-teacher-done'))"))
+        self.page.wait_for_function(
+            "steps => JSON.parse(localStorage.getItem('cad-teacher-work:hole')).step === steps", arg=steps
+        )
+        self.page.locator('#learn [data-act="diff"]').check()
+        expect(self.page.locator("#learn")).to_contain_text("No differences")
+        self.page.reload()
+        self.ready()
+        self.page.locator('[data-open="hole"]').click()
+        expect(self.page.locator("#learn .win")).to_be_visible()
