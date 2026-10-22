@@ -18,8 +18,13 @@ class PreviewTests(BrowserTest):
                     this.requests = new Map();
                     this.addEventListener('message', ({data}) => {
                         geometryEvents.push({request:this.requests.get(data.id), ...structuredClone(data)});
-                        this.requests.delete(data.id);
                     });
+                }
+                set onmessage(handler) {
+                    super.onmessage = event => {
+                        const delay = window.delayPreview && this.requests.get(event.data.id)?.channel === 'preview';
+                        delay ? setTimeout(() => handler(event), 400) : handler(event);
+                    };
                 }
                 postMessage(data) { this.requests.set(data.id, data); super.postMessage(data); }
             };
@@ -64,6 +69,10 @@ class PreviewTests(BrowserTest):
         self.settled()
         self.page.evaluate('geometryEvents.length = 0')
         field = self.page.locator('#dialog input[data-k="distance"]')
+        self.page.evaluate('window.delayPreview = true')
+        field.fill('21')
+        self.page.wait_for_function("geometryEvents.some(e => e.request.channel === 'preview')")
+        # Deliver the old result after newer input, exercising the stale-result guard.
         field.evaluate("""el => { for (let value = 11; value <= 20; value++) {
             el.value = String(value); el.dispatchEvent(new Event('input', {bubbles:true}));
         }}""")
@@ -80,7 +89,9 @@ class PreviewTests(BrowserTest):
         # A queued preview must not re-open its dialog or change committed state after Cancel.
         self.page.locator('#chips .chip').last.click()
         self.settled()
+        self.page.evaluate('geometryEvents.length = 0')
         field.fill('30')
+        self.page.wait_for_function("geometryEvents.some(e => e.request.channel === 'preview')")
         self.page.locator('#dialog [data-act="cancel"]').click()
         expect(self.page.locator('#dialog')).to_be_hidden()
         with self.page.expect_download() as saved:

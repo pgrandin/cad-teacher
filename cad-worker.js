@@ -1,8 +1,9 @@
 // Workers do not inherit the page's import map. Carry the deployed version into this import.
-let cad;
+let cad, initialized = false;
 const ready = (async () => {
   cad = await import(new URL('./cad.js' + new URL(import.meta.url).search, import.meta.url));
   await cad.init();
+  initialized = true;
 })();
 const caches = new Map();
 const build = (features, channel) => {
@@ -25,6 +26,6 @@ self.onmessage = async ({ data: { id, channel, features, before, goal, showDiff 
       self.postMessage({ id, result: response });
     }
   } catch (error) {
-    self.postMessage({ id, error: error?.message || String(error) });
+    self.postMessage({ id, error: error?.message || String(error), fatal: !initialized });
   }
 };

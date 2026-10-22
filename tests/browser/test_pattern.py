@@ -1,6 +1,6 @@
 from playwright.sync_api import expect
 
-from support import BrowserTest
+from support import BrowserTest, ROOT
 
 
 BLOCK = [
@@ -14,16 +14,28 @@ class PatternTests(BrowserTest):
     def setUp(self):
         super().setUp()
         # Even if both input and engine validation regress, no test may allocate unbounded copies.
-        self.page.evaluate("""async () => {
-            const { Solid } = await import('./vendor/replicad.js');
-            const clone = Solid.prototype.clone;
+        guard = """
+            const clone = R.Solid.prototype.clone;
             let copies = 0;
-            Solid.prototype.clone = function () {
+            R.Solid.prototype.clone = function () {
                 if (++copies > 200) throw Error('test stopped excessive pattern allocation');
                 if (copies === 1) queueMicrotask(() => { copies = 0; });
                 return clone.call(this);
             };
-        }""")
+        """
+        self.cad_requests = 0
+
+        def guarded_cad(route):
+            self.cad_requests += 1
+            route.fulfill(content_type='text/javascript', body=(ROOT / 'cad.js').read_text() + guard)
+
+        self.page.route('**/cad.js*', guarded_cad)
+        self.page.reload()
+        self.ready()
+
+    def tearDown(self):
+        self.assertGreaterEqual(self.cad_requests, 2, "Allocation guard must protect the main thread and worker")
+        super().tearDown()
 
     def test_invalid_numbers_block_preview_commit_and_recover(self):
         self.import_design(BLOCK)

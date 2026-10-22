@@ -11,6 +11,7 @@ function pump() {
       if (data.id !== active?.id) return;
       const job = active;
       active = null;
+      if (data.fatal) { worker.terminate(); worker = null; }
       data.error ? job.reject(new Error(data.error)) : job.resolve(data.result);
       pump();
     };

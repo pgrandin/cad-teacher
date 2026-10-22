@@ -594,6 +594,7 @@ async function finishSketch(keep = true) {
 
 // Redefine Sketch Plane: back to the 3D view to click another plane or face. The shapes keep their sketch coordinates.
 function replane(on) {
+  if (sketch.pending) return;
   Object.assign(sketch, { picking: on, tool: null, pts: [] });
   hover = null;
   sketchControls(true);
@@ -972,6 +973,8 @@ function renderDialog() {
       <div class="db">${nameField(sketch.feature.name, autoName(sketch.index, 'sketch'))}<button data-act="replane" class="wide${sketch.picking ? ' on' : ''}">${t(sketch.picking ? 'dlg.cancel' : 'sketch.replane')}</button>
       ${rows || `<p class="note">${t('sketch.empty')}</p>`}<p class="err" id="cmderr"></p></div>
       <div class="df"><button data-act="delete" class="danger">${t('dlg.delete')}</button><span></span><button data-act="finish" class="ok">${t('tool.finish')}</button></div>`;
+    $('#dialog [data-act="replane"]').disabled = sketch.pending;
+    updateCmdError();
     return;
   }
   if (!cmd) return;
@@ -1011,10 +1014,11 @@ function updateCmdError() {
   if (acmd) return updateAsmError();
   if (sketch) {
     $('#cmderr').textContent = inputError();
-    $('#dialog [data-act="finish"]').disabled = !!inputError();
+    $('#dialog [data-act="finish"]').disabled = sketch.pending || !!inputError();
     return;
   }
   if (!cmd) return;
+  if (cmd.sel) $('#dialog .note').textContent = tn('edges.picked', cmd.sel.size);
   const err = cmd.preview.errors[cmd.feature.id];
   $('#cmderr').textContent = inputError() || (cmd.pending ? t('app.building') : err ? t(err) : '');
   $('#okbtn').disabled = !!inputError() || cmd.pending || !!err;
@@ -1068,7 +1072,7 @@ function renderTimeline() {
   $('#chips').innerHTML = features.map((f, i) => {
     const err = built.errors[f.id], name = nameAt(i, f);
     const cls = ['chip', err && 'err', i === active && 'on', active >= 0 && i > active && 'rolled'].filter(Boolean).join(' ');
-    return `<button class="${cls}" data-i="${i}" title="${name}${err ? ': ' + t(err) : ''} (${t('timeline.edit')})">${ICON[f.type]}<span>${name}</span></button>`;
+    return `<button class="${cls}" data-i="${i}"${building ? ' disabled' : ''} title="${name}${err ? ': ' + t(err) : ''} (${t('timeline.edit')})">${ICON[f.type]}<span>${name}</span></button>`;
   }).join('') || `<span class="empty">${t('timeline.empty')}</span>`;
 }
 $('#chips').addEventListener('click', e => {
@@ -1340,6 +1344,7 @@ const partOf = id => parts.get(id);
 async function loadPart(id) {
   if (parts.has(id)) return;
   const result = await requestGeometry(LESSONS.find(l => l.id === id).goal, { channel: `part:${id}` });
+  if (result && !result.body) throw new Error('err.failed');
   if (result?.body) parts.set(id, { body: result.body, objs: bodyObjects(result.body), rims: new Map() });
 }
 
