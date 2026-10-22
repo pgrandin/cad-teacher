@@ -146,6 +146,9 @@ export default {
   'learn.diffMissing': 'missing (add this)',
   'learn.diffExtra': 'extra (remove this)',
   'learn.diffNone': 'No differences: your part matches the goal.',
+  'learn.diffFailed': 'The shapes could not be compared. Your part has not been marked as a match. Try again after editing.',
+  'learn.diffUnavailable': 'The shapes have not been compared yet.',
+  'learn.diffDifferent': 'Your part’s size or volume differs from the goal.',
   'learn.restart': 'Start over',
 
   'lesson.block.title': 'Your first block',

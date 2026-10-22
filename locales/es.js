@@ -144,6 +144,9 @@ export default {
   'learn.diffMissing': 'falta (añádelo)',
   'learn.diffExtra': 'sobra (quítalo)',
   'learn.diffNone': 'Sin diferencias: tu pieza coincide con el objetivo.',
+  'learn.diffFailed': 'No se pudieron comparar las formas. Tu pieza no se ha validado. Inténtalo de nuevo después de editarla.',
+  'learn.diffUnavailable': 'Las formas aún no se han comparado.',
+  'learn.diffDifferent': 'Las dimensiones o el volumen de tu pieza difieren del objetivo.',
   'learn.restart': 'Empezar de nuevo',
 
   'lesson.block.title': 'Tu primer bloque',

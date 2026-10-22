@@ -161,11 +161,37 @@ const holeMoved = cad.rebuild(LESSONS.find(l => l.id === 'hole').goal.map(f => (
 d = cad.diff(holeMoved, holeGoal);
 near(cad.metrics(d.missing).volume, PI * 16 * 10);
 near(cad.metrics(d.extra).volume, PI * 16 * 10);
-assert.deepEqual(cad.diff(goalBlock, goalBlock), { missing: null, extra: null });
+assert.deepEqual(cad.diff(goalBlock, goalBlock), { missing: null, extra: null, failed: false });
 assert.ok(cad.sameShape(cad.metrics(holeMoved), cad.metrics(holeGoal)), 'size+volume alone cannot see a moved hole');
 assert.ok(!cad.matches(holeMoved, holeGoal), 'a moved hole must not match');
 assert.ok(cad.matches(holeGoal, holeGoal));
+assert.equal(cad.matches(holeGoal, holeGoal, null), false, 'an unavailable comparison must not match');
+assert.equal(cad.matches(holeGoal, holeGoal, {}), false, 'an unknown comparison state must not match');
+assert.equal(cad.compare(holeGoal, holeGoal).match, true, 'a correct non-threaded goal passes');
+assert.deepEqual(cad.compare(null, null), { mine: null, match: false, diff: null }, 'no comparison cannot award completion');
 near(cad.metrics(goalBlock).volume, 8000); // inputs survive
+
+// Equal metrics cannot hide a misplaced threaded hole; independently rebuilt threaded goals pass.
+const threadedGoal = cad.rebuild(nut).body;
+const shiftedThread = cad.rebuild(nut.map(f => f.type === 'hole' ? { ...f, y: 1 } : f));
+assert.deepEqual(shiftedThread.errors, {});
+assert.ok(cad.sameShape(cad.metrics(shiftedThread.body), cad.metrics(threadedGoal)));
+const threadDifference = cad.compare(shiftedThread.body, threadedGoal);
+assert.equal(threadDifference.match, false, 'a threaded hole shifted by 1 mm must not match');
+assert.equal(threadDifference.diff.failed, false);
+assert.ok(threadDifference.diff.missing && threadDifference.diff.extra);
+assert.equal(cad.compare(cad.rebuild(nut).body, threadedGoal).match, true, 'a correct threaded goal passes');
+
+// A kernel exception is unknown, never an empty difference (fault injection).
+const realClone = holeMoved.clone;
+try {
+  holeMoved.clone = () => { throw new Error('simulated boolean failure'); };
+  assert.deepEqual(cad.diff(holeMoved, holeGoal), { missing: null, extra: null, failed: true });
+  assert.equal(cad.matches(holeMoved, holeGoal), false, 'failed differences must not match');
+  const failed = cad.compare(holeMoved, holeGoal);
+  assert.equal(failed.match, false);
+  assert.equal(failed.diff.failed, true);
+} finally { holeMoved.clone = realClone; }
 
 // A fillet that is too big fails cleanly instead of crashing, with a translatable error.
 const bad = [...blockGoal, { type: 'fillet', id: 'x', edges: LESSONS.find(l => l.id === 'fillet').goal[2].edges, r: 50 }];

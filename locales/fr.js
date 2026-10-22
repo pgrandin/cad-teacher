@@ -144,6 +144,9 @@ export default {
   'learn.diffMissing': 'manquant (à ajouter)',
   'learn.diffExtra': 'en trop (à enlever)',
   'learn.diffNone': 'Aucune différence : ta pièce correspond à l’objectif.',
+  'learn.diffFailed': 'Impossible de comparer les formes. Ta pièce n’a pas été validée. Réessaie après une modification.',
+  'learn.diffUnavailable': 'Les formes n’ont pas encore été comparées.',
+  'learn.diffDifferent': 'Les dimensions ou le volume de ta pièce diffèrent de l’objectif.',
   'learn.restart': 'Recommencer',
 
   'lesson.block.title': 'Ton premier bloc',
