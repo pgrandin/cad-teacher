@@ -154,3 +154,44 @@ class PreviewTests(BrowserTest):
         self.import_design(model)
         self.settled()
         expect(self.page.locator('[data-tool="stl"]')).to_be_enabled()
+
+    def test_failed_assembly_part_load_keeps_joint_editing_and_retry_available(self):
+        self.page.add_init_script("""(() => {
+            let failPart = true;
+            window.partSuccesses = 0;
+            const NativeWorker = Worker;
+            window.Worker = class extends NativeWorker {
+                constructor(...args) {
+                    super(...args); this.parts = new Set();
+                    this.addEventListener('message', ({data}) => {
+                        if (this.parts.has(data.id) && data.result?.body) partSuccesses++;
+                    });
+                }
+                postMessage(data) {
+                    if (data.channel.startsWith('part:')) {
+                        if (failPart) { failPart = false; throw Error('test part load'); }
+                        this.parts.add(data.id);
+                    }
+                    super.postMessage(data);
+                }
+            };
+        })()""")
+        self.page.reload()
+        self.ready()
+        joint = {'id': 'j1', 'type': 'revolute', 'angle': 20,
+                 'moving': {'comp': 'link', 'rim': {'c': [-24, 0, 4], 'n': [0, 0, 1]}},
+                 'fixed': {'comp': 'base', 'rim': {'c': [4, 0, 5], 'n': [0, 0, 1]}}}
+        self.page.evaluate("joint => localStorage.setItem('cad-teacher-work:robot-joint', JSON.stringify({joints:[joint]}))", joint)
+        self.page.locator('[data-course="robot"] > summary').click()
+        self.page.locator('[data-open="robot-joint"]').click()
+        self.settled()
+        self.page.locator('#chips .chip').click()
+        expect(self.page.locator('#dialog [data-act="cancel"]')).to_be_visible()
+        self.page.locator('#dialog [data-act="cancel"]').click()
+        self.page.locator('#learn [data-act="back"]').click()
+        self.settled()
+        self.page.locator('[data-open="robot-joint"]').click()
+        self.settled()
+        self.page.wait_for_function('partSuccesses >= 2')
+        self.page.locator('#chips .chip').click()
+        expect(self.page.locator('#dialog [data-act="delete"]')).to_be_visible()

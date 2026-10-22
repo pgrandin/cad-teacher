@@ -1411,7 +1411,9 @@ function drawAssembly() {
   }
   const mark = (pick, mat) => {
     if (!pick) return;
-    const g = asm.objs.find(g => g.userData.comp.id === pick.comp), m = partOf(g.userData.comp.part).objs.m;
+    const g = asm.objs.find(g => g.userData.comp.id === pick.comp);
+    if (!g) return; // a failed part load can leave saved joints without rendered components
+    const m = partOf(g.userData.comp.part).objs.m;
     const grp = m.edges.edgeGroups.find(x => x.edgeId === pick.edge);
     if (grp) g.children[2].add(fat(m.edges.lines.slice(grp.start * 3, (grp.start + grp.count) * 3), mat));
   };
