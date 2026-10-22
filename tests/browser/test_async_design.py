@@ -96,6 +96,8 @@ class AsyncDesignTests(BrowserTest):
     def test_new_cancels_pending_draft_restore(self):
         self.restore_held_draft()
         self.page.locator('[data-tool="new"]').click()
+        self.assertEqual(self.saved()['features'], [])
+        self.assertIsNone(self.saved()['sketchDraft'])
         self.release()
         expect(self.page.locator('#dialog')).to_be_hidden()
         expect(self.page.locator('#chips .chip')).to_have_count(0)

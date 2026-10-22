@@ -478,6 +478,7 @@ function drawDiff() {
 
 function undoLast() {
   if (!undoStack.length) return;
+  loadingWork = false;
   sketch = cmd = acmd = null;
   pickingPlane = false;
   sketchControls(false);
@@ -666,6 +667,7 @@ async function openFile(file) {
 }
 // New and Open replace the free design; Ctrl+Z brings the old one back.
 async function replaceDesign(list, down = null) {
+  loadingWork = false;
   sketch = cmd = null;
   pickingPlane = false;
   sketchControls(false);
@@ -980,6 +982,7 @@ function renderDialog() {
       ${rows || `<p class="note">${t('sketch.empty')}</p>`}<p class="err" id="cmderr"></p></div>
       <div class="df"><button data-act="delete" class="danger">${t('dlg.delete')}</button><span></span><button data-act="finish" class="ok">${t('tool.finish')}</button></div>`;
     $('#dialog [data-act="replane"]').disabled = sketch.pending;
+    el.querySelectorAll('input').forEach(input => { input.disabled = sketch.pending; });
     updateCmdError();
     return;
   }
@@ -1180,6 +1183,7 @@ async function openLesson(def, challenge, fresh = false) {
   const assemblyReady = setAssembly(def.assembly);
   if (asm && saved?.joints) asm.joints = saved.joints;
   bumpUid([...features, ...(asm?.joints || [])]);
+  if (fresh) { loadingWork = false; saveWork(); }
   renderLearn();
   const modelReady = restoreWork(saved);
   if (def.goal) {
@@ -1527,7 +1531,7 @@ function renderJointTimeline() {
   $('#chips').innerHTML = asm.joints.map((j, i) => {
     const err = asm.errors?.[j.id], name = jointName(i);
     const cls = ['chip', err && 'err', i === active && 'on'].filter(Boolean).join(' ');
-    return `<button class="${cls}" data-i="${i}" title="${name}: ${compName(j.moving.comp)} → ${compName(j.fixed.comp)}${err ? ' · ' + t(err) : ''} (${t('timeline.edit')})">${ICON.joint}<span>${name}</span></button>`;
+    return `<button class="${cls}" data-i="${i}"${building ? ' disabled' : ''} title="${name}: ${compName(j.moving.comp)} → ${compName(j.fixed.comp)}${err ? ' · ' + t(err) : ''} (${t('timeline.edit')})">${ICON.joint}<span>${name}</span></button>`;
   }).join('') || `<span class="empty">${t('timeline.empty')}</span>`;
 }
 
