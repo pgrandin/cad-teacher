@@ -1,19 +1,39 @@
-# Deploy to GitHub Pages on every push to main: test, stamp the commit, cache-bust, publish.
+# Check pull requests; deploy main only after both test suites pass.
 name: Pages
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: node test.mjs
+      - run: python -m pip install -r tests/browser/requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python -m unittest discover -s tests/browser -p 'test_*.py' -v
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -22,7 +42,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node test.mjs
       - name: Stamp version and cache-bust
         # Pages lets browsers cache files for 10 minutes. Loading every app module as file.js?v=<sha>
         # (through the import map) makes a plain reload pick up a new deploy right away.
@@ -39,8 +58,13 @@ jobs:
             fs.writeFileSync("index.html", html);
           ' "$v"
           grep -c "?v=$v" index.html
+      - name: Stage static site
+        run: |
+          mkdir -p .work/pages
+          cp .nojekyll LICENSE *.html *.js .work/pages/
+          cp -r locales vendor .work/pages/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: .work/pages
       - id: deploy
         uses: actions/deploy-pages@v4
