@@ -6,6 +6,7 @@ import { LineSegments2 } from './vendor/LineSegments2.js';
 import { LineSegmentsGeometry } from './vendor/LineSegmentsGeometry.js';
 import { LineMaterial } from './vendor/LineMaterial.js';
 import * as cad from './cad.js';
+import { requestGeometry } from './cad-client.js';
 import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
 import { t, tn, has, lang, setLang, LANGS } from './i18n.js';
 import { poses } from './assembly.js';
@@ -19,7 +20,7 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const fmt = n => String(Math.round(n * 10) / 10);
 
 let features = [];             // the timeline
-let built = cad.rebuild([]);   // the timeline, rebuilt
+let built = { body: null, errors: {}, planes: {} };   // the timeline, rebuilt
 let sketch = null;             // sketch mode: { index, feature, plane, before, tool, pts, cursor, sel, picking }
 let cmd = null;                // open command: { index, feature, before, preview, sel: Map(edgeId -> edge ref) }
 let pickingPlane = false;      // Create Sketch is waiting for a plane or face click
@@ -34,6 +35,8 @@ let showGoal = true;
 let showDiff = false;           // color what is missing (green) / extra (red) compared to the goal
 const undoStack = [];
 let uid = 0;
+let building = false, buildRevision = 0, comparisonRevision = 0;
+let previewTimer;
 
 // ---------- 3D view ----------
 const view = $('#view');
@@ -415,15 +418,47 @@ const nameAt = (i, f) => esc(f.name || autoName(i, f.type));
 const nameField = (name, auto) => `<label>${t('dlg.name')}<input type="text" data-k="name" maxlength="30" value="${esc(name || '')}" placeholder="${esc(auto)}"></label>`;
 const pushUndo = () => { undoStack.push(structuredClone(asm ? asm.joints : { features, printDown })); if (undoStack.length > 50) undoStack.shift(); };
 
-function rebuildAll() {
-  built = cad.rebuild(features);
+async function rebuildAll() {
+  const revision = ++buildRevision;
+  building = true;
+  if (lesson) lesson.match = false;
+  refresh();
+  try {
+    const result = await requestGeometry(features);
+    if (!result || revision !== buildRevision) return false;
+    built = result;
+  } catch (error) {
+    if (revision !== buildRevision) return false;
+    built = { body: null, planes: {}, errors: Object.fromEntries(features.map(f => [f.id, 'err.failed'])) };
+    flash(t('err.failed'));
+  }
+  building = false;
   if (lesson) compare();
   drawDiff();
   refresh();
+  return true;
 }
 
-function compare() {
-  Object.assign(lesson, cad.compare(built.body, lesson.goalBody, showDiff));
+// Exact comparison can take seconds for threads, just like a rebuild. Keep it in the worker.
+async function compare() {
+  const current = lesson, revision = ++comparisonRevision, modelRevision = buildRevision;
+  if (!current || building) return;
+  current.mine = cad.metrics(built.body);
+  current.match = false;
+  current.diff = null;
+  if (!current.goalBody) return;
+  renderLearn();
+  try {
+    const result = await requestGeometry(features, { channel: 'compare', goal: current.def.goal, showDiff });
+    if (!result || lesson !== current || revision !== comparisonRevision || modelRevision !== buildRevision) return;
+    Object.assign(current, result);
+  } catch {
+    if (lesson !== current || revision !== comparisonRevision || modelRevision !== buildRevision) return;
+    current.diff = { missing: null, extra: null, failed: true };
+  }
+  drawDiff();
+  checkLesson();
+  draw();
 }
 
 function drawDiff() {
@@ -472,19 +507,40 @@ const DEFAULTS = {
 
 function startCommand(type, index = features.length, feature = null) {
   const f = feature ? structuredClone(feature) : { type, id: 'u' + ++uid, ...DEFAULTS[type](index) };
-  const before = cad.rebuild(features.slice(0, index));
-  cmd = { index, feature: f, before, sel: f.edges ? new Map() : null };
-  if (f.edges?.length && before.body) {
-    try { cad.matchEdges(before.body, f.edges).forEach((id, i) => cmd.sel.set(id, f.edges[i])); } catch { /* edges gone; kid re-picks */ }
-  }
-  updatePreview();
+  const before = index === features.length ? built : { body: null, errors: {}, planes: {} };
+  cmd = { index, feature: f, before, preview: before, sel: f.edges ? new Map() : null, pending: true };
+  updatePreview(true);
   refresh();
 }
-// ponytail: replays the whole timeline on every keystroke; cache prefixes if parts get big.
-const updatePreview = () => { cmd.preview = cad.rebuild([...features.slice(0, cmd.index), cmd.feature]); };
+
+function updatePreview(immediate = false) {
+  clearTimeout(previewTimer);
+  const current = cmd, revision = current.revision = (current.revision || 0) + 1;
+  current.pending = true;
+  const run = async () => {
+    if (cmd !== current || revision !== current.revision) return;
+    try {
+      const result = await requestGeometry([...features.slice(0, current.index), current.feature], { channel: 'preview', before: current.index });
+      if (!result || cmd !== current || revision !== current.revision) return;
+      current.preview = result;
+      current.before = result.before;
+      if (current.sel && current.before.body) {
+        current.sel.clear();
+        try { cad.matchEdges(current.before.body, current.feature.edges).forEach((id, i) => current.sel.set(id, current.feature.edges[i])); } catch { /* edges gone; kid re-picks */ }
+      }
+    } catch {
+      if (cmd !== current || revision !== current.revision) return;
+      current.preview = { ...current.before, errors: { [current.feature.id]: 'err.failed' } };
+    }
+    current.pending = false;
+    refresh(false); // preserve the focused input and any half-typed value
+  };
+  if (immediate) run();
+  else previewTimer = setTimeout(run, 100);
+}
 
 function commitCommand() {
-  if (!cmd || inputError() || cmd.preview.errors[cmd.feature.id]) return;
+  if (!cmd || cmd.pending || inputError() || cmd.preview.errors[cmd.feature.id]) return;
   pushUndo();
   features.splice(cmd.index, cmd.index < features.length ? 1 : 0, cmd.feature);
   cmd = null;
@@ -498,22 +554,33 @@ function deleteFeature(i) {
   rebuildAll();
 }
 
-function enterSketch(index, feature, draft = {}) {
-  const before = cad.rebuild(features.slice(0, index));
-  let plane;
-  try { plane = cad.resolvePlane(feature.plane, before.body); } catch { plane = cad.planeFrom(cad.BASE_PLANES.XY); }
+async function enterSketch(index, feature, draft = {}) {
+  const before = index === features.length ? built : { body: null, errors: {}, planes: {} };
   pickingPlane = false;
   cmd = null;
-  sketch = { index, feature: structuredClone(feature), plane, before, tool: draft.tool || null, pts: draft.pts || [], cursor: null, sel: draft.sel ?? -1, picking: !!draft.picking };
+  const current = sketch = { index, feature: structuredClone(feature), plane: cad.planeFrom(cad.BASE_PLANES.XY), before, tool: draft.tool || null, pts: draft.pts || [], cursor: null, sel: draft.sel ?? -1, picking: !!draft.picking, pending: true };
+  refresh();
+  try {
+    const result = await requestGeometry(features.slice(0, index), { channel: 'preview' });
+    if (!result || sketch !== current) return;
+    current.before = result;
+    try { current.plane = cad.resolvePlane(feature.plane, result.body); } catch { /* keep XY if the face is gone */ }
+  } catch {
+    if (sketch !== current) return;
+    sketch = null;
+    flash(t('err.failed'));
+    return refresh();
+  }
+  current.pending = false;
   sketchControls(true);
   useOrtho(true);
-  sketch.picking ? home() : lookAtPlane(plane);
+  current.picking ? home() : lookAtPlane(current.plane);
   refresh();
 }
 
 // Delete is finishSketch(false). A new sketch with nothing drawn is dropped either way.
-function finishSketch(keep = true) {
-  if (keep && inputError()) return;
+async function finishSketch(keep = true) {
+  if (keep && (sketch.pending || inputError())) return;
   const { index, feature } = sketch;
   const isNew = index === features.length, add = keep && (feature.shapes.length || !isNew) ? [feature] : [];
   if (add.length || !isNew) {
@@ -522,8 +589,7 @@ function finishSketch(keep = true) {
   }
   sketch = null;
   sketchControls(false);
-  rebuildAll();
-  home();
+  if (await rebuildAll()) home();
 }
 
 // Redefine Sketch Plane: back to the 3D view to click another plane or face. The shapes keep their sketch coordinates.
@@ -589,10 +655,10 @@ async function openFile(file) {
   } catch { return flash(t('err.badFile')); }
   if (lesson) openFree();
   // Bad values show as red features, like in any timeline; anything worse is undone.
-  try { replaceDesign(data.features, down); } catch { undoLast(); flash(t('err.badFile')); }
+  try { await replaceDesign(data.features, down); } catch { undoLast(); flash(t('err.badFile')); }
 }
 // New and Open replace the free design; Ctrl+Z brings the old one back.
-function replaceDesign(list, down = null) {
+async function replaceDesign(list, down = null) {
   sketch = cmd = null;
   pickingPlane = false;
   sketchControls(false);
@@ -600,11 +666,11 @@ function replaceDesign(list, down = null) {
   features = list;
   printDown = down;
   bumpUid(features);
-  rebuildAll();
-  home();
+  if (await rebuildAll()) home();
 }
 
 function act(id, fromKey = false) {
+  if ((building || sketch?.pending) && !['new', 'open', 'save', 'undo'].includes(id)) return;
   if (asm) return asmAct(id);
   if (sketch) {
     if (sketch.picking) replane(false);
@@ -687,6 +753,7 @@ function pick(e) {
 }
 
 function modelClick(e) {
+  if (building || cmd?.pending || sketch?.pending) return;
   const h = pick(e);
   if (!h) return;
   if (printMode) { printDown = h.ref.n; hover = null; refresh(); return home(); } // lay this face on the bed
@@ -949,8 +1016,8 @@ function updateCmdError() {
   }
   if (!cmd) return;
   const err = cmd.preview.errors[cmd.feature.id];
-  $('#cmderr').textContent = inputError() || (err ? t(err) : '');
-  $('#okbtn').disabled = !!inputError() || !!err;
+  $('#cmderr').textContent = inputError() || (cmd.pending ? t('app.building') : err ? t(err) : '');
+  $('#okbtn').disabled = !!inputError() || cmd.pending || !!err;
 }
 
 $('#dialog').addEventListener('input', e => {
@@ -1006,13 +1073,14 @@ function renderTimeline() {
 }
 $('#chips').addEventListener('click', e => {
   const b = e.target.closest('.chip');
-  if (!b) return;
+  if (!b || building) return;
   if (sketch) return flash(t('timeline.finishFirst'));
   if (asm) return editJoint(+b.dataset.i);
   editFeature(+b.dataset.i);
 });
 
 function hintText() {
+  if (building || sketch?.pending) return t('app.building');
   if (acmd) return t(acmd.kind === 'drive' ? 'hint.drive' : `hint.joint${[acmd.joint.moving, acmd.joint.fixed].filter(Boolean).length}`);
   if (asm) return t('hint.assembly');
   if (printMode) return `${printArea >= 1 ? t('print.area', { n: Math.round(printArea) }) : t('print.none')} · ${t('hint.print')}`;
@@ -1052,23 +1120,25 @@ function saveWork() {
 // New ids must not collide with restored ones (u3, j2...).
 const bumpUid = list => { for (const x of list) uid = Math.max(uid, +String(x.id).replace(/^\D+/, '') || 0); };
 
-function restoreWork(saved) {
-  // Rebuilding refreshes the screen; keep it from erasing the draft before it is restored.
-  loadingWork = true;
+async function restoreWork(saved) {
+  // Async rebuilds refresh the screen; preserve the draft until this restore finishes.
+  const restoring = loadingWork = {};
   try {
-    rebuildAll();
+    renderLearn();
+    if (!await rebuildAll() || loadingWork !== restoring) return;
     const draft = saved?.sketchDraft;
     if (!asm && draft?.feature?.type === 'sketch' && Number.isInteger(draft.index) && draft.index >= 0 &&
         (draft.index === features.length || features[draft.index]?.id === draft.feature.id)) {
       bumpUid([draft.feature]);
-      enterSketch(draft.index, draft.feature, draft);
+      await enterSketch(draft.index, draft.feature, draft);
     } else home();
     renderLearn();
-  } finally { loadingWork = false; }
-  saveWork();
+  } finally {
+    if (loadingWork === restoring) { loadingWork = false; saveWork(); }
+  }
 }
 
-function openFree(saved = loadWork('free')) {
+async function openFree(saved = loadWork('free')) {
   sketch = cmd = acmd = lesson = null;
   pickingPlane = printMode = false;
   sketchControls(false);
@@ -1081,10 +1151,10 @@ function openFree(saved = loadWork('free')) {
   clear(goalGroup);
   clear(diffGroup);
   setAssembly(null);
-  restoreWork(saved);
+  await restoreWork(saved);
 }
 
-function openLesson(def, challenge, fresh = false) {
+async function openLesson(def, challenge, fresh = false) {
   sketch = cmd = acmd = null;
   pickingPlane = false;
   sketchControls(false);
@@ -1094,19 +1164,36 @@ function openLesson(def, challenge, fresh = false) {
   printDown = saved?.printDown || null;
   features = structuredClone(saved?.features || def.start || []);
   clear(goalGroup);
-  setAssembly(def.assembly);
+  const steps = def.steps || [s => s.match];
+  const current = lesson = { def, challenge, steps, step: saved?.lessonVersion === def.version ? saved?.step || 0 : 0, startCount: (def.start || []).length, goal: null, goalBody: null };
+  const assemblyReady = setAssembly(def.assembly);
   if (asm && saved?.joints) asm.joints = saved.joints;
   bumpUid([...features, ...(asm?.joints || [])]);
-  const goalBody = def.goal && cad.rebuild(def.goal).body;
-  if (goalBody) goalGroup.add(fat(cad.meshOf(goalBody).edges.lines, M.goal));
-  goalGroup.visible = showGoal;
-  const steps = def.steps || [s => s.match];
-  lesson = { def, challenge, steps, step: saved?.lessonVersion === def.version ? saved?.step || 0 : 0, startCount: (def.start || []).length, goal: goalBody && cad.metrics(goalBody), goalBody };
-  restoreWork(saved);
+  renderLearn();
+  const modelReady = restoreWork(saved);
+  if (def.goal) {
+    try {
+      const result = await requestGeometry(def.goal, { channel: 'goal' });
+      if (!result || lesson !== current) return;
+      current.goalBody = result.body;
+      current.goal = cad.metrics(result.body);
+      if (result.body) goalGroup.add(fat(cad.meshOf(result.body).edges.lines, M.goal));
+      goalGroup.visible = showGoal;
+    } catch {
+      if (lesson !== current) return;
+      flash(t('err.failed'));
+    }
+  }
+  await Promise.all([assemblyReady, modelReady]);
+  if (lesson !== current) return;
+  compare();
+  refresh(false);
+  renderLearn();
+  if (!sketch) home();
 }
 
 function checkLesson() {
-  if (!lesson) return;
+  if (!lesson || building) return;
   const s = {
     introAcknowledged: lesson.introAcknowledged, viewDirection: lesson.viewDirection, features, mode: sketch ? 'sketch' : 'model', draft: sketch?.feature.shapes, sketchOnFace: !!sketch?.feature.plane.face, sketchBase: sketch?.feature.plane.base,
     dialog: acmd?.kind ?? cmd?.feature.type, selected: cmd?.sel?.size || 0, holeFace: !!cmd?.feature.face, match: lesson.match, startCount: lesson.startCount,
@@ -1249,23 +1336,27 @@ scene.add(asmGroup);
 const compMats = [0xb9c4cc, 0xf0a04b, 0x7cc47f, 0xb48ae0, 0x6fb7e9].map(color =>
   new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
 const parts = new Map(); // part id -> { body, objs, rims }, built once per session
-function partOf(id) {
-  if (!parts.has(id)) {
-    const body = cad.rebuild(LESSONS.find(l => l.id === id).goal).body;
-    parts.set(id, { body, objs: bodyObjects(body), rims: new Map() });
-  }
-  return parts.get(id);
+const partOf = id => parts.get(id);
+async function loadPart(id) {
+  if (parts.has(id)) return;
+  const result = await requestGeometry(LESSONS.find(l => l.id === id).goal, { channel: `part:${id}` });
+  if (result?.body) parts.set(id, { body: result.body, objs: bodyObjects(result.body), rims: new Map() });
 }
+
 function rimOf(part, edgeId) {
   const p = partOf(part);
   if (!p.rims.has(edgeId)) p.rims.set(edgeId, cad.rimRef(p.body, edgeId));
   return p.rims.get(edgeId);
 }
 
-function setAssembly(comps) {
+async function setAssembly(comps) {
   clear(asmGroup);
-  asm = comps && { components: structuredClone(comps), joints: [], driven: false };
+  asm = comps && { components: structuredClone(comps), joints: [], driven: false, objs: [] };
   if (!asm) return;
+  const current = asm;
+  try { await Promise.all([...new Set(comps.map(c => c.part))].map(loadPart)); }
+  catch { if (asm === current) flash(t('err.failed')); return; }
+  if (asm !== current) return;
   asm.objs = asm.components.map((c, i) => {
     const p = partOf(c.part), g = new THREE.Group();
     const mesh = new THREE.Mesh(p.objs.mesh.geometry, compMats[i % compMats.length]);
@@ -1454,7 +1545,7 @@ function drawPrint() {
 function refresh(full = true) {
   if (cmd || sketch || pickingPlane || asm || !built.body) printMode = false; // print check is for the finished part
   setShown(cmd ? cmd.preview.body : sketch ? sketch.before.body : built.body);
-  setPicker(cmd ? cmd.before.body : sketch ? (sketch.picking ? sketch.before.body : null) : pickingPlane || printMode ? built.body : null);
+  setPicker(building || cmd?.pending || sketch?.pending ? null : cmd ? cmd.before.body : sketch ? (sketch.picking ? sketch.before.body : null) : pickingPlane || printMode ? built.body : null);
   grid.visible = !sketch;
   diffGroup.visible = !sketch && !cmd && !printMode; // differences are about the finished part, not a preview
   drawPrint();
@@ -1465,7 +1556,9 @@ function refresh(full = true) {
   drawHighlights();
   if (asm) drawAssembly();
   else $('#parts').hidden = true;
+  view.setAttribute('aria-busy', String(building || !!cmd?.pending || !!sketch?.pending));
   renderToolbar();
+  if (building || sketch?.pending) $('#tools').querySelectorAll('button').forEach(b => { if (!['new', 'open', 'save', 'undo'].includes(b.dataset.tool)) b.disabled = true; });
   renderTimeline();
   renderHint();
   if (full) renderDialog();

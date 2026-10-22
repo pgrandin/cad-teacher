@@ -20,6 +20,7 @@ export default {
   "lesson.intro.outro": "Du kannst dich jetzt im 3D-Raum bewegen und eine Skizzierebene wählen. Als Nächstes zeichnest du ein 2D-Rechteck und extrudierst es zu einem 3D-Körper. Seine Flächen bilden die Oberfläche; Kanten sind die Linien, an denen Flächen zusammentreffen; Eckpunkte sind die Punkte, an denen Kanten zusammentreffen.",
   "lesson.intro.outro.simple": "Du kennst das Zimmer, die Lineale und die Steuerung zum Umsehen. Als Nächstes zeichnest du ein Rechteck auf dem Boden und ziehst es zu einem Block hoch!",
   'lang.name': 'Deutsch',
+  'app.building': 'Geometrie wird berechnet…',
   'app.loading': 'CAD-Engine wird geladen…',
   'app.loadFailed': 'Die CAD-Engine konnte nicht geladen werden: {msg}',
   'app.home': 'Startansicht',
