@@ -1,5 +1,5 @@
-// UI: a Fusion-like shell around cad.js. The timeline (`features`) is the only real state;
-// the 3D view, dialogs and lesson progress are all derived from it.
+// UI: a Fusion-like shell around cad.js. The timeline and active sketch draft hold the design;
+// the 3D view, dialogs and lesson progress are derived from them.
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { LineSegments2 } from './vendor/LineSegments2.js';
@@ -505,16 +505,16 @@ function deleteFeature(i) {
   rebuildAll();
 }
 
-function enterSketch(index, feature) {
+function enterSketch(index, feature, draft = {}) {
   const before = cad.rebuild(features.slice(0, index));
   let plane;
   try { plane = cad.resolvePlane(feature.plane, before.body); } catch { plane = cad.planeFrom(cad.BASE_PLANES.XY); }
   pickingPlane = false;
   cmd = null;
-  sketch = { index, feature: structuredClone(feature), plane, before, tool: null, pts: [], cursor: null, sel: -1, picking: false };
+  sketch = { index, feature: structuredClone(feature), plane, before, tool: draft.tool || null, pts: draft.pts || [], cursor: null, sel: draft.sel ?? -1, picking: !!draft.picking };
   sketchControls(true);
   useOrtho(true);
-  lookAtPlane(plane);
+  sketch.picking ? home() : lookAtPlane(plane);
   refresh();
 }
 
@@ -957,12 +957,13 @@ $('#dialog').addEventListener('input', e => {
   const text = el.tagName === 'SELECT' || k === 'name';
   const v = text ? el.value.trim() : numberValue(el);
   if (!text && !Number.isFinite(v)) return updateCmdError(); // keep the last preview while half-typed
-  if (k === 'name') return void ((sketch || cmd).feature.name = v);
+  if (k === 'name') { (sketch || cmd).feature.name = v; saveWork(); return; }
   if (sketch) {
     sketch.feature.shapes[+el.dataset.i][k] = v;
     updateCmdError();
     drawSketches();
     checkLesson();
+    saveWork();
     draw();
     return;
   }
@@ -976,6 +977,7 @@ $('#dialog').addEventListener('focusin', e => {
   sketch.sel = +e.target.dataset.i;
   $('#dialog').querySelectorAll('fieldset').forEach(f => f.classList.toggle('sel', +f.dataset.i === sketch.sel));
   drawSketches();
+  saveWork();
   draw();
 });
 $('#dialog').addEventListener('click', e => {
@@ -1038,12 +1040,30 @@ const markDone = id => { try { localStorage.setItem(DONE_KEY, JSON.stringify([..
 const workKey = id => 'cad-teacher-work:' + id;
 const loadWork = id => { try { return JSON.parse(localStorage.getItem(workKey(id))); } catch { return null; } };
 let freeLoaded = false; // the screen draws before the engine loads: don't save that empty design over the kept one
+let loadingWork = false;
 function saveWork() {
-  if (!lesson && !freeLoaded) return;
-  try { localStorage.setItem(workKey(lesson?.def.id || 'free'), JSON.stringify({ features, joints: asm?.joints, step: lesson?.step, lessonVersion: lesson?.def.version, printDown })); } catch { /* storage full or blocked */ }
+  if (loadingWork || (!lesson && !freeLoaded)) return;
+  const sketchDraft = sketch && { index: sketch.index, feature: sketch.feature, tool: sketch.tool, pts: sketch.pts, sel: sketch.sel, picking: sketch.picking };
+  try { localStorage.setItem(workKey(lesson?.def.id || 'free'), JSON.stringify({ features, sketchDraft, joints: asm?.joints, step: lesson?.step, lessonVersion: lesson?.def.version, printDown })); } catch { /* storage full or blocked */ }
 }
 // New ids must not collide with restored ones (u3, j2...).
 const bumpUid = list => { for (const x of list) uid = Math.max(uid, +String(x.id).replace(/^\D+/, '') || 0); };
+
+function restoreWork(saved) {
+  // Rebuilding refreshes the screen; keep it from erasing the draft before it is restored.
+  loadingWork = true;
+  try {
+    rebuildAll();
+    const draft = saved?.sketchDraft;
+    if (!asm && draft?.feature?.type === 'sketch' && Number.isInteger(draft.index) && draft.index >= 0 &&
+        (draft.index === features.length || features[draft.index]?.id === draft.feature.id)) {
+      bumpUid([draft.feature]);
+      enterSketch(draft.index, draft.feature, draft);
+    } else home();
+    renderLearn();
+  } finally { loadingWork = false; }
+  saveWork();
+}
 
 function openFree(saved = loadWork('free')) {
   sketch = cmd = acmd = lesson = null;
@@ -1058,9 +1078,7 @@ function openFree(saved = loadWork('free')) {
   clear(goalGroup);
   clear(diffGroup);
   setAssembly(null);
-  rebuildAll();
-  renderLearn();
-  home();
+  restoreWork(saved);
 }
 
 function openLesson(def, challenge, fresh = false) {
@@ -1081,9 +1099,7 @@ function openLesson(def, challenge, fresh = false) {
   goalGroup.visible = showGoal;
   const steps = def.steps || [s => s.match];
   lesson = { def, challenge, steps, step: saved?.lessonVersion === def.version ? saved?.step || 0 : 0, startCount: (def.start || []).length, goal: goalBody && cad.metrics(goalBody), goalBody };
-  rebuildAll();
-  renderLearn();
-  home();
+  restoreWork(saved);
 }
 
 function checkLesson() {
