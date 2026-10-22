@@ -267,7 +267,7 @@ export function metrics(body) {
   return { volume: R.measureVolume(body), min, max };
 }
 
-// ponytail: same volume + same bounding box counts as "same part"; enough for lessons.
+// A fast preliminary check; equal volume and bounds do not prove that two parts match.
 // Tight on volume: the kid's part and the goal come from the same engine, and a small fillet is only ~0.5%.
 export function sameShape(a, b) {
   if (!a || !b) return false;
@@ -278,15 +278,31 @@ export function sameShape(a, b) {
 // What separates a part from its goal: material the goal has and the part lacks (missing), and the
 // reverse (extra). Works on copies, since booleans consume their inputs. Rounding slivers are ignored.
 export function diff(mine, goal) {
-  const keep = shape => (shape && R.measureVolume(shape) > 0.5 ? shape : null);
-  const cut = (a, b) => { try { return keep(b ? a.clone().cut(b.clone()) : a.clone()); } catch { return null; } };
-  return { missing: cut(goal, mine), extra: mine ? cut(mine, goal) : null };
+  const cut = (a, b) => {
+    const shape = b ? a.clone().cut(b.clone()) : a.clone();
+    const volume = R.measureVolume(shape);
+    if (!Number.isFinite(volume) || volume < -0.5) throw new Error('Invalid difference volume');
+    return volume > 0.5 ? shape : null;
+  };
+  try {
+    return { missing: cut(goal, mine), extra: mine ? cut(mine, goal) : null, failed: false };
+  } catch {
+    return { missing: null, extra: null, failed: true };
+  }
 }
 
 // A part matches its goal when size and volume agree and nothing is missing or extra. Size and
 // volume alone are fooled by a hole in the wrong place.
 export function matches(mine, goal, d = diff(mine, goal)) {
-  return sameShape(metrics(mine), metrics(goal)) && !d.missing && !d.extra;
+  return sameShape(metrics(mine), metrics(goal)) && d?.failed === false && !d.missing && !d.extra;
+}
+
+// Booleans are expensive, so compare geometry only when the preliminary check passes or the
+// learner asks to see differences. A skipped or failed comparison can never award completion.
+export function compare(mine, goal, showDiff = false) {
+  const measured = metrics(mine), same = sameShape(measured, metrics(goal));
+  const d = goal && (same || showDiff) ? diff(mine, goal) : null;
+  return { mine: measured, match: same && d?.failed === false && !d.missing && !d.extra, diff: d };
 }
 
 export const meshOf = body => ({

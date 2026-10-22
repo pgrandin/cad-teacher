@@ -144,6 +144,9 @@ export default {
   'learn.diffMissing': 'fehlt (hinzufügen)',
   'learn.diffExtra': 'zu viel (wegnehmen)',
   'learn.diffNone': 'Keine Unterschiede: Dein Teil passt zum Ziel.',
+  'learn.diffFailed': 'Die Formen konnten nicht verglichen werden. Dein Teil wurde nicht als passend gewertet. Versuche es nach einer Änderung erneut.',
+  'learn.diffUnavailable': 'Die Formen wurden noch nicht verglichen.',
+  'learn.diffDifferent': 'Die Maße oder das Volumen deines Teils weichen vom Ziel ab.',
   'learn.restart': 'Neu anfangen',
 
   'lesson.block.title': 'Dein erster Block',

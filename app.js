@@ -422,15 +422,8 @@ function rebuildAll() {
   refresh();
 }
 
-// The differences are the slow part, so they are only worked out once size and volume agree, or when
-// the kid asks to see them.
-// ponytail: threads take ~10 s to diff, so a threaded part with the goal's size and volume counts as a match.
 function compare() {
-  lesson.mine = cad.metrics(built.body);
-  const same = !!lesson.goalBody && cad.sameShape(lesson.mine, lesson.goal);
-  const threaded = same && features.some(f => f.type === 'thread');
-  lesson.diff = lesson.goalBody && !threaded && (same || showDiff) ? cad.diff(built.body, lesson.goalBody) : null;
-  lesson.match = same && (threaded || (!lesson.diff.missing && !lesson.diff.extra));
+  Object.assign(lesson, cad.compare(built.body, lesson.goalBody, showDiff));
 }
 
 function drawDiff() {
@@ -1160,9 +1153,11 @@ function renderLearn() {
     ${won ? `<div class="win"><b>${t('learn.win')}</b>${challenge ? '' : explain(ltKey(lesson, 'outro'))}${next ? `<button class="btn" data-act="next">${t('learn.next', { title: lt(next, 'title') })}</button>` : ''}</div>` : ''}
     ${lesson.goal ? `<label class="check"><input type="checkbox" data-act="goal"${showGoal ? ' checked' : ''}> ${t('learn.showGoal')}</label>
       <label class="check"><input type="checkbox" data-act="diff"${showDiff ? ' checked' : ''}> ${t('learn.showDiff')}</label>
-      ${showDiff ? `<p class="tip">${lesson.diff?.missing || lesson.diff?.extra
-        ? `<i class="sw miss"></i>${t('learn.diffMissing')} &nbsp; <i class="sw extra"></i>${t('learn.diffExtra')}`
-        : t('learn.diffNone')}</p>` : ''}` : ''}
+      ${showDiff || lesson.diff?.failed ? `<p class="tip">${lesson.diff?.failed ? t('learn.diffFailed')
+        : !lesson.diff ? t('learn.diffUnavailable')
+        : lesson.match ? t('learn.diffNone')
+        : lesson.diff.missing || lesson.diff.extra ? `<i class="sw miss"></i>${t('learn.diffMissing')} &nbsp; <i class="sw extra"></i>${t('learn.diffExtra')}`
+        : t('learn.diffDifferent')}</p>` : ''}` : ''}
     <button class="btn" data-act="restart">${t('learn.restart')}</button>`;
 }
 $('#learn').addEventListener('click', e => {
