@@ -188,14 +188,18 @@ function revolveSketch(sk, pl, axis, angle) {
 // the vertical axis through the origin.
 // ponytail: fixed pattern directions (X/Y/Z, Z axis); Fusion lets you pick any edge or axis.
 function patternCopies(tool, f) {
+  const counts = f.kind === 'circle' ? [f.n] : [f.nx, f.ny, f.nz === undefined ? 1 : f.nz]; // older designs have no Z
+  if (!counts.every(n => Number.isSafeInteger(n) && n >= 1)) throw new Error('err.patternCount');
+  const total = counts.reduce((a, b) => a * b, 1);
+  if (total < 2) throw new Error('err.patternCount');
+  if (total > 100) throw new Error('err.patternLimit');
+  if (f.kind !== 'circle' && ![f.dx, f.dy, f.dz === undefined ? 0 : f.dz].every(Number.isFinite)) throw new Error('err.numberFinite');
   const copies = [];
   if (f.kind === 'circle') {
-    const n = Math.round(f.n);
-    if (!(n >= 2)) throw new Error('err.patternCount');
+    const [n] = counts;
     for (let k = 1; k < n; k++) copies.push(tool.clone().rotate(360 * k / n, [0, 0, 0], [0, 0, 1]));
   } else {
-    const nx = Math.round(f.nx), ny = Math.round(f.ny), nz = Math.round(f.nz ?? 1); // older designs have no Z
-    if (!(nx >= 1 && ny >= 1 && nz >= 1 && nx * ny * nz >= 2)) throw new Error('err.patternCount');
+    const [nx, ny, nz] = counts;
     for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++)
       if (i || j || k) copies.push(tool.clone().translate([i * f.dx, j * f.dy, k * (f.dz || 0)]));
   }
