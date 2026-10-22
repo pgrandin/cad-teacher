@@ -413,7 +413,7 @@ const autoName = (i, type) => t(`feature.${type}`) + (features.slice(0, i).filte
 const esc = s => String(s).replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
 const nameAt = (i, f) => esc(f.name || autoName(i, f.type));
 const nameField = (name, auto) => `<label>${t('dlg.name')}<input type="text" data-k="name" maxlength="30" value="${esc(name || '')}" placeholder="${esc(auto)}"></label>`;
-const pushUndo = () => { undoStack.push(structuredClone(asm ? asm.joints : features)); if (undoStack.length > 50) undoStack.shift(); };
+const pushUndo = () => { undoStack.push(structuredClone(asm ? asm.joints : { features, printDown })); if (undoStack.length > 50) undoStack.shift(); };
 
 function rebuildAll() {
   built = cad.rebuild(features);
@@ -446,7 +446,7 @@ function undoLast() {
   pickingPlane = false;
   sketchControls(false);
   if (asm) asm.joints = undoStack.pop();
-  else features = undoStack.pop();
+  else ({ features, printDown } = undoStack.pop());
   rebuildAll();
 }
 
@@ -548,7 +548,7 @@ function editFeature(i) {
 function exportFile(kind) {
   const a = document.createElement('a');
   // STEP keeps the design position (to keep designing in Fusion); STL is placed on the bed, ready to print.
-  a.href = URL.createObjectURL(kind === 'save' ? new Blob([JSON.stringify({ app: 'cad-teacher', version: 1, features })], { type: 'application/json' })
+  a.href = URL.createObjectURL(kind === 'save' ? new Blob([JSON.stringify({ app: 'cad-teacher', version: 1, features, printDown })], { type: 'application/json' })
     : kind === 'step' ? cad.stepOf(built.body) : cad.stlOf(cad.onBed(built.body, printDown)));
   a.download = `${lesson?.def.id || 'my-design'}.${kind === 'save' ? 'cadteacher.json' : kind}`;
   a.click();
@@ -573,22 +573,32 @@ function validImport(features) {
   });
 }
 async function openFile(file) {
-  let data;
+  let data, down;
   try {
     data = JSON.parse(await file.text());
     if (data.app !== 'cad-teacher' || !validImport(data.features)) throw 0;
+    down = data.printDown ?? null; // Files saved before print orientation was included use the default.
+    if (down !== null) {
+      if (!Array.isArray(down) || down.length !== 3 || !down.every(Number.isFinite)) throw 0;
+      const scale = Math.max(...down.map(Math.abs));
+      if (!scale) throw 0;
+      down = down.map(x => x / scale); // Normalize even very large or small finite vectors safely.
+      const length = Math.hypot(...down);
+      down = down.map(x => x / length);
+    }
   } catch { return flash(t('err.badFile')); }
   if (lesson) openFree();
   // Bad values show as red features, like in any timeline; anything worse is undone.
-  try { replaceDesign(data.features); } catch { undoLast(); flash(t('err.badFile')); }
+  try { replaceDesign(data.features, down); } catch { undoLast(); flash(t('err.badFile')); }
 }
 // New and Open replace the free design; Ctrl+Z brings the old one back.
-function replaceDesign(list) {
+function replaceDesign(list, down = null) {
   sketch = cmd = null;
   pickingPlane = false;
   sketchControls(false);
   pushUndo();
   features = list;
+  printDown = down;
   bumpUid(features);
   rebuildAll();
   home();
