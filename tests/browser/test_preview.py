@@ -120,3 +120,37 @@ class PreviewTests(BrowserTest):
         ])
         self.settled()
         expect(self.page.locator('[data-tool="stl"]')).to_be_enabled()
+
+    def test_synchronous_worker_failures_do_not_poison_the_queue(self):
+        self.page.add_init_script("""(() => {
+            window.workerFailure = 'constructor';
+            const NativeWorker = Worker;
+            window.Worker = class extends NativeWorker {
+                constructor(...args) {
+                    if (workerFailure === 'constructor') { window.workerFailure = null; throw Error('test constructor'); }
+                    super(...args);
+                }
+                postMessage(data) {
+                    if (workerFailure === 'send') { window.workerFailure = null; throw Error('test send'); }
+                    super.postMessage(data);
+                }
+            };
+        })()""")
+        self.page.reload()
+        self.ready()
+        self.settled()
+        model = [
+            {'id': 's', 'type': 'sketch', 'plane': {'base': 'XY'},
+             'shapes': [{'kind': 'circle', 'x': 0, 'y': 0, 'd': 4}]},
+            {'id': 'e', 'type': 'extrude', 'sketch': 's', 'distance': 10, 'op': 'join'},
+        ]
+        self.import_design(model)
+        self.settled()
+        expect(self.page.locator('[data-tool="stl"]')).to_be_enabled()
+        self.page.evaluate("window.workerFailure = 'send'")
+        self.import_design(model)
+        expect(self.page.locator('#chips .err')).to_have_count(2)
+        self.settled()
+        self.import_design(model)
+        self.settled()
+        expect(self.page.locator('[data-tool="stl"]')).to_be_enabled()

@@ -458,6 +458,7 @@ async function compare() {
   }
   drawDiff();
   checkLesson();
+  saveWork();
   draw();
 }
 
@@ -654,7 +655,7 @@ async function openFile(file) {
       down = down.map(x => x / length);
     }
   } catch { return flash(t('err.badFile')); }
-  if (lesson) openFree();
+  if (lesson) await openFree();
   // Bad values show as red features, like in any timeline; anything worse is undone.
   try { await replaceDesign(data.features, down); } catch { undoLast(); flash(t('err.badFile')); }
 }

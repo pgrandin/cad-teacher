@@ -233,7 +233,6 @@ export function rebuild(features, cache = []) {
   };
   for (let i = reused; i < features.length; i++) {
     const f = features[i];
-    body = body?.clone() || null; // preserve cached shapes across consuming CAD operations
     try {
       if (f.type === 'sketch') {
         planes[f.id] = resolvePlane(f.plane, body);
