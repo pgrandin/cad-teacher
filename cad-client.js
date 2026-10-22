@@ -15,6 +15,7 @@ function pump() {
       pump();
     };
     worker.onerror = event => {
+      event.preventDefault();
       const error = new Error(event.message || 'Geometry worker failed');
       active?.reject(error);
       for (const job of queued.values()) job.reject(error);

@@ -1,6 +1,9 @@
 // Workers do not inherit the page's import map. Carry the deployed version into this import.
-const cad = await import(new URL('./cad.js' + new URL(import.meta.url).search, import.meta.url));
-await cad.init();
+let cad;
+const ready = (async () => {
+  cad = await import(new URL('./cad.js' + new URL(import.meta.url).search, import.meta.url));
+  await cad.init();
+})();
 const caches = new Map();
 const build = (features, channel) => {
   if (!caches.has(channel)) caches.set(channel, []);
@@ -8,8 +11,9 @@ const build = (features, channel) => {
 };
 const pack = result => ({ ...result, body: result.body?.serialize() || null });
 
-self.onmessage = ({ data: { id, channel, features, before, goal, showDiff } }) => {
+self.onmessage = async ({ data: { id, channel, features, before, goal, showDiff } }) => {
   try {
+    await ready; // register the handler before WASM loads, so the first request is retained
     const result = build(features, ['preview', 'compare'].includes(channel) ? 'model' : channel);
     if (goal) {
       const compared = cad.compare(result.body, build(goal, 'goal').body, showDiff);
