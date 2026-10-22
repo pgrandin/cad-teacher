@@ -563,11 +563,26 @@ function exportFile(kind) {
 }
 
 const TYPES = ['sketch', 'extrude', 'revolve', 'fillet', 'chamfer', 'hole', 'thread', 'pattern'];
+const validId = id => typeof id === 'string' && /^[\w-]+$/.test(id) && !Object.hasOwn(Object.prototype, id);
+function validImport(features) {
+  if (!Array.isArray(features)) return false;
+  const types = new Map();
+  for (const f of features) {
+    if (!f || !TYPES.includes(f.type) || !validId(f.id) || types.has(f.id)) return false;
+    types.set(f.id, f.type);
+  }
+  return features.every(f => {
+    const ref = f.type === 'extrude' || f.type === 'revolve' ? 'sketch' : f.type === 'pattern' ? 'of' : null;
+    const allowed = ref === 'sketch' ? ['sketch'] : ['extrude', 'revolve', 'hole'];
+    // Deleting a referenced feature leaves a red timeline item that can still be saved and opened.
+    return !ref || (validId(f[ref]) && (!types.has(f[ref]) || allowed.includes(types.get(f[ref]))));
+  });
+}
 async function openFile(file) {
   let data;
   try {
     data = JSON.parse(await file.text());
-    if (data.app !== 'cad-teacher' || !data.features.every(f => TYPES.includes(f.type) && typeof f.id === 'string')) throw 0;
+    if (data.app !== 'cad-teacher' || !validImport(data.features)) throw 0;
   } catch { return flash(t('err.badFile')); }
   if (lesson) openFree();
   // Bad values show as red features, like in any timeline; anything worse is undone.
@@ -859,7 +874,7 @@ $('#tools').addEventListener('click', e => {
 const showNum = v => Number(v).toLocaleString(lang, { useGrouping: false, maximumFractionDigits: 3 });
 const num = (label, value, attrs) => `<label>${t(label)}<input type="text" inputmode="decimal" value="${showNum(value)}" ${attrs}></label>`;
 const select = (label, k, value, options) =>
-  `<label>${t(label)}<select data-k="${k}">${options.map(([v, text]) => `<option value="${v}"${v === value ? ' selected' : ''}>${text}</option>`).join('')}</select></label>`;
+  `<label>${t(label)}<select data-k="${k}">${options.map(([v, text]) => `<option value="${esc(v)}"${v === value ? ' selected' : ''}>${text}</option>`).join('')}</select></label>`;
 const SHAPE_FIELDS = {
   rect: [['x', 'field.cx'], ['y', 'field.cy'], ['w', 'field.w'], ['h', 'field.h']],
   circle: [['x', 'field.cx'], ['y', 'field.cy'], ['d', 'field.d']],
