@@ -3,12 +3,13 @@
 **Try it: https://pgrandin.github.io/cad-teacher/**
 
 Teaches kids the Fusion 360 / SolidWorks way to model: sketch, extrude, then build features on
-features (fillet, chamfer, hole, revolve, pattern), with a timeline you can go back and edit. Five courses, each with
+features (fillet, chamfer, hole, thread, revolve, pattern), with a timeline you can go back and edit. Six courses, each with
 guided lessons and challenges checked against a goal shape ("Show differences" colors what is missing or extra): the basics (starting with a guided walkthrough of axes, the origin, sketch planes, and camera controls), "Design your robot arm"
 (printable parts, then an assembly with joints you can drive, like Fusion's Joint and Drive Joints),
 "Elf furniture" (dollhouse table, chair, bookshelf, bed), "Spin & repeat" (revolve and
-pattern: chess pawn, robot wheel, toy brick), and "Print without supports" (the 45° rule, print
-orientation, sideways holes). Print check shows what would print in thin air and lets you pick the
+pattern: chess pawn, robot wheel, toy brick), "Print without supports" (the 45° rule, print
+orientation, sideways holes), and "Advanced projects" (chess knight, sword and shield, building façade,
+gears, a screw and a nut that fit, a hinge made of two identical leaves). Print check shows what would print in thin air and lets you pick the
 face that lies on the bed; Export STL saves the part in that position.
 Work is saved in the browser per lesson, and the design made outside lessons is kept too. Save writes
 the timeline to a `.cadteacher.json` file that Open reads back (another computer, a teacher). Parts

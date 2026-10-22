@@ -417,13 +417,20 @@ const pushUndo = () => { undoStack.push(structuredClone(asm ? asm.joints : featu
 
 function rebuildAll() {
   built = cad.rebuild(features);
-  if (lesson) {
-    lesson.mine = cad.metrics(built.body);
-    lesson.diff = lesson.goalBody && cad.diff(built.body, lesson.goalBody);
-    lesson.match = !!lesson.goalBody && cad.matches(built.body, lesson.goalBody, lesson.diff);
-  }
+  if (lesson) compare();
   drawDiff();
   refresh();
+}
+
+// The differences are the slow part, so they are only worked out once size and volume agree, or when
+// the kid asks to see them.
+// ponytail: threads take ~10 s to diff, so a threaded part with the goal's size and volume counts as a match.
+function compare() {
+  lesson.mine = cad.metrics(built.body);
+  const same = !!lesson.goalBody && cad.sameShape(lesson.mine, lesson.goal);
+  const threaded = same && features.some(f => f.type === 'thread');
+  lesson.diff = lesson.goalBody && !threaded && (same || showDiff) ? cad.diff(built.body, lesson.goalBody) : null;
+  lesson.match = same && (threaded || (!lesson.diff.missing && !lesson.diff.extra));
 }
 
 function drawDiff() {
@@ -465,6 +472,7 @@ const DEFAULTS = {
   fillet: () => ({ edges: [], r: 2 }),
   chamfer: () => ({ edges: [], r: 1 }),
   hole: () => ({ face: null, x: 0, y: 0, d: 6, depth: 0 }),
+  thread: () => ({ face: null, pitch: 2 }),
   revolve: i => ({ sketch: defaultSketch(i), axis: 'v', angle: 360, op: 'join' }),
   pattern: i => ({ of: patternable(i).at(-1)?.[0].id || '', kind: 'rect', nx: 2, dx: 10, ny: 1, dy: 10, n: 6 }),
 };
@@ -554,7 +562,7 @@ function exportFile(kind) {
   if (kind !== 'stl') flash(t(kind === 'step' ? 'hint.stepSaved' : 'hint.saved'), 8000);
 }
 
-const TYPES = ['sketch', 'extrude', 'revolve', 'fillet', 'chamfer', 'hole', 'pattern'];
+const TYPES = ['sketch', 'extrude', 'revolve', 'fillet', 'chamfer', 'hole', 'thread', 'pattern'];
 async function openFile(file) {
   let data;
   try {
@@ -632,7 +640,8 @@ function pick(e) {
     return near.d < tol * tol ? { kind: 'axis', id: near.id } : null;
   }
   const choosing = pickingPlane || sketch?.picking;
-  const wantEdge = !!cmd?.sel, wantFace = choosing || printMode || cmd?.feature.type === 'hole';
+  const threading = cmd?.feature.type === 'thread';
+  const wantEdge = !!cmd?.sel, wantFace = choosing || printMode || threading || cmd?.feature.type === 'hole';
   if (!wantEdge && !wantFace) return null;
   setRay(e);
   const meshHit = picker && ray.intersectObject(picker.mesh)[0];
@@ -654,7 +663,7 @@ function pick(e) {
   }
   const tri = meshHit.faceIndex * 3;
   const g = picker.m.faces.faceGroups.find(g => tri >= g.start && tri < g.start + g.count);
-  const ref = g && faceRefOf(g.faceId);
+  const ref = g && (threading ? cad.cylRef(picker.body, g.faceId) : faceRefOf(g.faceId));
   return ref && { kind: 'face', id: g.faceId, ref, point: meshHit.point.toArray() };
 }
 
@@ -674,6 +683,8 @@ function modelClick(e) {
     if (cmd.sel.has(h.id)) cmd.sel.delete(h.id);
     else cmd.sel.set(h.id, cad.edgeRef(picker.body, h.id));
     cmd.feature.edges = [...cmd.sel.values()];
+  } else if (cmd.feature.type === 'thread') {
+    cmd.feature.face = h.ref;
   } else {
     const pl = cad.resolvePlane({ face: h.ref }, picker.body);
     const p = h.point.map((v, i) => v - pl.o[i]);
@@ -780,6 +791,7 @@ const ICON = {
   sketch: svg('<rect x="3" y="7" width="12" height="12" rx="1"/><path d="M13 13l7-7 2 2-7 7-3 1z"/>'),
   extrude: svg('<path d="M3 16l9 4 9-4-9-4z"/><path d="M12 14V3M8.5 6.5L12 3l3.5 3.5"/>'),
   hole: svg('<path d="M3 9l9-4 9 4-9 4z"/><path d="M3 9v7l9 4 9-4V9"/><ellipse cx="12" cy="9" rx="3" ry="1.4" fill="currentColor"/>'),
+  thread: svg('<path d="M8 3h8v18H8z"/><path d="M8 8l8-3M8 12l8-3M8 16l8-3M8 20l8-3"/>'),
   fillet: svg('<path d="M4 21V12a8 8 0 0 1 8-8h9"/>'),
   chamfer: svg('<path d="M4 21v-9l8-8h9"/>'),
   line: svg('<path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.8"/><circle cx="19" cy="5" r="1.8"/>'),
@@ -824,6 +836,7 @@ function renderToolbar() {
       toolBtn('extrude', { on: type === 'extrude', disabled: !features.some(f => f.type === 'sketch'), key: 'E' }),
       toolBtn('revolve', { on: type === 'revolve', disabled: !features.some(f => f.type === 'sketch') }),
       toolBtn('hole', { on: type === 'hole', disabled: !body, key: 'H' }),
+      toolBtn('thread', { on: type === 'thread', disabled: !body }),
       toolBtn('pattern', { on: type === 'pattern', disabled: !patternable(features.length).length }),
     ]) + group('modify', [
       toolBtn('fillet', { on: type === 'fillet', disabled: !body, key: 'F' }),
@@ -885,6 +898,8 @@ function renderDialog() {
       (f.kind === 'circle'
         ? `<p class="note">${t('pattern.circleNote')}</p>` + num('pattern.n', f.n, 'data-k="n"')
         : num('pattern.nx', f.nx, 'data-k="nx"') + num('pattern.dx', f.dx, 'data-k="dx"') + num('pattern.ny', f.ny, 'data-k="ny"') + num('pattern.dy', f.dy, 'data-k="dy"'));
+  } else if (f.type === 'thread') {
+    body = `<p class="note">${t(f.face ? 'thread.picked' : 'thread.pick')}</p>` + num('thread.pitch', f.pitch, 'data-k="pitch" step="0.5"');
   } else if (f.type === 'hole') {
     body = `<p class="note">${t(f.face ? 'hole.picked' : 'hole.pick')}</p>` +
       num('hole.x', f.x, 'data-k="x"') + num('hole.y', f.y, 'data-k="y"') +
@@ -1171,7 +1186,7 @@ $('#learn').addEventListener('toggle', e => {
 }, true);
 $('#learn').addEventListener('change', e => {
   if (e.target.dataset.act === 'goal') showGoal = goalGroup.visible = e.target.checked;
-  if (e.target.dataset.act === 'diff') { showDiff = e.target.checked; drawDiff(); }
+  if (e.target.dataset.act === 'diff') { showDiff = e.target.checked; compare(); drawDiff(); }
   draw();
 });
 

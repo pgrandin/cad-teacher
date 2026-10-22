@@ -63,6 +63,75 @@ function findEdges(body, refs) {
   });
 }
 
+// A whole round face, the outside of a shaft or the inside of a hole: its axis (point q, direction a),
+// radius r, span t0..t1 along the axis from q, and out = material inside (a shaft). Null for other faces,
+// and for part of a cylinder like a fillet.
+function cylinderOf(f) {
+  if (f.geomType !== 'CYLINDRE') return null;
+  const { uMin, uMax } = f.UVBounds;
+  if (uMax - uMin < 2 * Math.PI - 1e-6) return null;
+  const [p1, p2] = [0, 0.25].map(u => f.pointOnSurface(u, 0.5).toTuple());
+  const [n1, n2] = [p1, p2].map(p => unit(f.normalAt(p).toTuple()));
+  const dn = add(n1, n2, -1), s = dot(add(p1, p2, -1), dn) / dot(dn, dn); // p - s·n is on the axis
+  const a = unit(cross(n1, n2)), q = add(p1, n1, -s);
+  const [t0, t1] = [0, 1].map(v => dot(add(f.pointOnSurface(0, v).toTuple(), q, -1), a)).sort((x, y) => x - y);
+  return { q, a, r: Math.abs(s), out: s > 0, t0, t1 };
+}
+
+// Stored like faces: by geometry (middle of the axis, direction, radius), re-found after every rebuild.
+// The axis is saved pointing to +X, +Y or +Z, whichever way the face was made.
+export function cylRef(body, faceId) {
+  const f = body.faces.find(f => f.hashCode === faceId), c = f && cylinderOf(f);
+  if (!c) return null;
+  const r6 = x => Math.round(x * 1e6) / 1e6 + 0, k = Math.sign(c.a[c.a.map(Math.abs).indexOf(Math.max(...c.a.map(Math.abs)))]);
+  return { c: add(c.q, c.a, (c.t0 + c.t1) / 2).map(r6), a: c.a.map(x => r6(k * x)), r: r6(c.r) };
+}
+
+function findCylinder(body, ref) {
+  let best = null, bestD = Infinity;
+  for (const f of body.faces) {
+    const c = f.geomType === 'CYLINDRE' && cylinderOf(f);
+    if (!c || Math.abs(dot(c.a, ref.a)) < 0.999) continue;
+    const d = dist(add(c.q, c.a, (c.t0 + c.t1) / 2), ref.c) + Math.abs(c.r - ref.r);
+    if (d < bestD) { best = c; bestD = d; }
+  }
+  if (!best) throw new Error('err.noFace');
+  return best;
+}
+
+// Thread (Fusion: Create → Thread, Modeled): a helical V-groove cut into the round face, pitch p apart.
+// Its sides are 45° (printable, see the print course) and it is 0.4·p deep: a 10 mm screw and a nut
+// drilled 9 mm, both pitch 2, fit with 0.3 mm of clearance.
+// ponytail: one profile for every size; Fusion picks ISO/UNC sizes from a table.
+function cutThread(body, c, p) {
+  const k = 0.4 * p, e = 0.05 * p, len = c.t1 - c.t0;
+  // Triangle in the XZ plane at the helix start, tip into the material, a bit less than p tall so the turns
+  // don't touch. Inside a hole the points go the other way round, or the swept solid comes out inside out.
+  const pts = c.out ? [[e, -(k + e)], [-k, 0], [e, k + e]] : [[-e, k + e], [k, 0], [-e, -(k + e)]];
+  const profile = R.draw(pts[0]).lineTo(pts[1]).lineTo(pts[2]).close().sketchOnPlane(new R.Plane([c.r, 0, -p], [1, 0, 0], [0, -1, 0]));
+  let g = R.genericSweep(profile.wire, R.makeHelix(p, len + 2 * p, c.r, [0, 0, -p], [0, 0, 1]), { frenet: true });
+  // The helix runs one turn past each end, so the groove is open there; boxes trim it to the face.
+  const w = c.r + 10, h = 3 * p + 1;
+  g = g.cut(R.makeBox([-w, -w, -h], [w, w, 0])).cut(R.makeBox([-w, -w, len], [w, w, len + h]));
+  // Built along Z at the origin, then moved onto the axis.
+  const axis = cross([0, 0, 1], c.a), sin = Math.hypot(...axis);
+  if (sin > 1e-9) g = g.rotate(Math.atan2(sin, c.a[2]) * 180 / Math.PI, [0, 0, 0], axis.map(x => x / sin));
+  else if (c.a[2] < 0) g = g.rotate(180, [0, 0, 0], [1, 0, 0]);
+  g = g.translate(add(c.q, c.a, c.t0));
+  // OpenCascade's cut between a helical groove and a cylinder often silently does nothing, or too much,
+  // depending on where the helix starts around the face. The start angle doesn't matter to the thread, and
+  // what the groove removes is known exactly (its triangle, spun around), so try angles until it adds up.
+  // ponytail: needs solid material all around the face; a cross hole through a screw fails the check.
+  const want = k * k * 2 * Math.PI * (c.r + (c.out ? -k : k) / 3) * len / p, before = R.measureVolume(body);
+  for (let deg = 0; deg < 360; deg += 36) {
+    try {
+      const b = body.clone().cut(g.clone().rotate(deg, c.q, c.a));
+      if (Math.abs(before - R.measureVolume(b) - want) < 1e-3 * want) return clean(b);
+    } catch { /* try the next angle */ }
+  }
+  throw new Error('err.threadFailed');
+}
+
 // Edge ids (as in meshEdges) of the stored edges, so the UI can highlight them.
 export const matchEdges = (body, refs) => (refs.length ? findEdges(body, refs).map(e => e.hashCode) : []);
 
@@ -119,7 +188,7 @@ function patternCopies(tool, f) {
 }
 
 // Errors are i18n keys (see locales/). OpenCascade's own failures map to one per feature type.
-const FAIL = { extrude: 'err.extrudeFailed', revolve: 'err.revolveFailed', fillet: 'err.filletFailed', chamfer: 'err.chamferFailed', hole: 'err.holeFailed', pattern: 'err.patternFailed' };
+const FAIL = { extrude: 'err.extrudeFailed', revolve: 'err.revolveFailed', fillet: 'err.filletFailed', chamfer: 'err.chamferFailed', hole: 'err.holeFailed', pattern: 'err.patternFailed', thread: 'err.threadFailed' };
 
 // Replays the timeline. A failing feature is skipped and reported, like a red item in Fusion.
 export function rebuild(features) {
@@ -159,6 +228,12 @@ export function rebuild(features) {
         const p = add(add(pl.o, pl.u, f.x), pl.v, f.y);
         const depth = f.depth > 0 ? f.depth : 1000; // 0 = through all
         apply(f, R.makeCylinder(f.d / 2, depth + 1, add(p, pl.n, 1), pl.n.map(x => -x)), 'cut');
+      } else if (f.type === 'thread') {
+        if (!body) throw new Error('err.nothingToCut');
+        if (!f.face) throw new Error('err.pickCylinder');
+        // Under 0.5 mm the groove is too fine to print and slow to build.
+        if (!(f.pitch >= 0.5)) throw new Error('err.threadPitch');
+        body = cutThread(body, findCylinder(body, f.face), f.pitch);
       }
     } catch (e) {
       errors[f.id] = e instanceof Error && e.message.startsWith('err.') ? e.message : FAIL[f.type] || 'err.failed';

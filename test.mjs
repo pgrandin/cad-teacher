@@ -15,6 +15,11 @@ const PI = Math.PI;
 const vol = fs => cad.metrics(cad.rebuild(fs).body).volume;
 const integrate = (f, a, b, n = 1000) => { const h = (b - a) / n; let s = 0; for (let i = 0; i < n; i++) s += f(a + (i + 0.5) * h) * h; return s; };
 const near = (a, b) => assert.ok(Math.abs(a - b) < 0.01 * b, `${a} != ${b}`);
+const area = pts => Math.abs(pts.reduce((s, p, i) => s + p[0] * pts[(i + 1) % pts.length][1] - pts[(i + 1) % pts.length][0] * p[1], 0)) / 2;
+// A gear tooth (Line shape from 1 mm inside a disc of radius r, 4 long, 4 → 2 wide): the part outside the disc.
+const toothOut = r => integrate(x => { const w = 2 - (x - r + 1) / 4; return 2 * w - 2 * Math.min(w, Math.sqrt(Math.max(0, r * r - x * x))); }, r - 1, r + 3);
+// Material a thread removes: a triangle 0.4·p deep and 0.8·p wide, spun around at its centroid, len/p turns.
+const threadCut = (r, p, len, out) => (0.4 * p) ** 2 * 2 * PI * (r + (out ? -1 : 1) * 0.4 * p / 3) * len / p;
 
 const expected = {
   block: 8000,
@@ -46,6 +51,20 @@ const expected = {
   'print-flip': 4 * PI * 9 * 40 + 80 * 50 * 4 - 4 * (25 - 25 * PI / 4) * 4,
   'print-holes': 30 * 10 * 20 - PI * 9 * 20 - 50 * 10,
   'print-shelf': 50 * 20 * 70 - 3 * 44 * 18 * 16,
+  // revolved base + collar, then the head outline extruded 5 mm each way
+  'adv-knight': PI * (256 * 4 + 144 * 2) + 10 * area([[-9, 6], [9, 6], [6, 15], [14, 22], [15, 27], [6, 34], [3, 40], [-1, 35], [-7, 30], [-10, 18]]),
+  // blade + guard + grip + pommel (minus where it overlaps the grip), 4 thick; chamfer triangles along the
+  // 4 blade edges (ignores the small corner overlaps, ~0.2%)
+  'adv-sword': (384 + 96 + 64 + 16 * PI - integrate(x => Math.max(0, Math.sqrt(16 - x * x) - 2), -2, 2)) * 4 - 1.5 ** 2 / 2 * (120 + 2 * Math.hypot(3, 8)),
+  'adv-facade': 60 * 64 * 4 - 12 * 8 * 10 * 2 - 10 * 16 * 2,
+  'adv-gear': PI * 225 * 5 + 12 * toothOut(15) * 5 - PI * 6.25 * 5,
+  'adv-gear-small': PI * 100 * 5 + 8 * toothOut(10) * 5 - PI * 6.25 * 5,
+  // hex head + shaft - the groove: its triangle (0.8 deep, 1.6 wide) spun around at its centroid, 10 turns
+  'adv-screw': 224 * 6 + PI * 25 * 20 - threadCut(5, 2, 20, true),
+  'adv-nut': 224 * 8 - PI * 4.5 ** 2 * 8 - threadCut(4.5, 2, 8, false),
+  // plate + the 3/4 of the knuckle tube outside it, minus the 2 slots (21.5 mm of it), minus the pin hole
+  'adv-hinge': 40 * 20 * 3 + 40 * 6.75 * PI - 21.5 * (12 + 6.75 * PI) - PI * 1.75 ** 2 * 18.5,
+  'adv-shield': area([[-20, 20], [20, 20], [20, -5], [12, -20], [0, -28], [-12, -20], [-20, -5]]) * 3 + (6 * 30 + 24 * 6 - 36) * 1.5,
 };
 
 for (const l of [...LESSONS, ...CHALLENGES]) {
@@ -83,6 +102,15 @@ intro.steps.forEach((check, i) => {
   assert.equal(check(tour[i]), true, `intro step ${i + 1} accepts its action`);
   assert.ok(!check(tour[(i + 1) % tour.length]), `intro step ${i + 1} waits for its action`);
 });
+
+// Threads are cut exactly as deep as their pitch says, on a shaft or in a hole drilled from either side.
+const nut = LESSONS.find(l => l.id === 'adv-nut').goal;
+const fromBelow = nut.map(f => (f.type === 'hole' ? { ...f, face: { n: [0, 0, -1], c: [0, 0, 0] } } : f));
+near(vol(fromBelow), expected['adv-nut']);
+near(vol(nut.map(f => (f.type === 'thread' ? { ...f, pitch: 1.5 } : f))), 224 * 8 - PI * 4.5 ** 2 * 8 - threadCut(4.5, 1.5, 8, false));
+assert.equal(cad.rebuild(nut.map(f => (f.type === 'thread' ? { ...f, pitch: 0.2 } : f))).errors.t1, 'err.threadPitch');
+const drilled = cad.rebuild(nut.slice(0, 3)).body;
+assert.deepEqual(cad.cylRef(drilled, drilled.faces.find(f => f.geomType === 'CYLINDRE').hashCode), nut.at(-1).face, 'a hole drilled down is saved pointing up');
 
 // Parametric edit: change the first sketch and extrude of the "change" lesson start, later features must follow.
 const edited = structuredClone(LESSONS.find(l => l.id === 'change').start);
@@ -147,6 +175,15 @@ near3(tips[0], [1, 0, 24 + 48], 'at 0° the link stands straight up');
 assert.equal(poses(comps, [{ id: 'j', moving: { comp: 'base', rim: pivot }, fixed: { comp: 'base', rim: pivot } }]).errors.j, 'err.jointSamePart');
 const twice = [1, 2].map(i => ({ id: 'j' + i, angle: 0, moving: { comp: 'link', rim: linkRim }, fixed: { comp: 'base', rim: pivot } }));
 assert.deepEqual(poses(comps, twice).errors, { j2: 'err.jointPlaced' });
+
+// Hinge: two copies of the same leaf. Joining a knuckle end of one to the facing end inside the other's gap
+// slides it by 11 mm, so its knuckles (0–9.5, 20.5–29.5) land in the gaps (9.5–20.5, 29.5–40.5).
+const leafRims = rimsOf('adv-hinge');
+const leafRim = (x, nx) => leafRims.find(r => r.c[0] === x && r.n[0] === nx);
+const leaves = [{ id: 'a', grounded: true }, { id: 'b' }];
+const hinge = angle => poses(leaves, [{ id: 'j', type: 'revolute', angle, moving: { comp: 'b', rim: leafRim(9.5, 1) }, fixed: { comp: 'a', rim: leafRim(20.5, -1) } }]).T.get('b');
+near3(new Vector3(0, 0, 3).applyMatrix4(hinge(0)), [11, 0, 3], 'the loose leaf slides into the gaps');
+near3(new Vector3(20, -10, 3).applyMatrix4(hinge(180)), [31, 10, 3], 'at 180° it lies open on the other side');
 
 // Printing: overhang area for a part laid on the bed with face normal n down (or as designed).
 const goalOf = id => LESSONS.find(l => l.id === id);
