@@ -21,6 +21,7 @@ export default {
   "lesson.intro.outro": "You can now navigate a 3D workspace and choose a sketch plane. Next, draw a 2D rectangle and extrude it to make a 3D solid. Faces are surfaces of that solid; edges are where its faces meet; vertices are where edges meet.",
   "lesson.intro.outro.simple": "You know the room, the rulers, and how to look around. Next you will draw a rectangle on the floor and pull it up into a block!",
   'lang.name': 'English',
+  'app.building': 'Building geometry…',
   'app.loading': 'Loading the CAD engine…',
   'app.loadFailed': 'Could not load the CAD engine: {msg}',
   'app.home': 'Home view',

@@ -20,6 +20,7 @@ export default {
   "lesson.intro.outro": "Ya sabes navegar en 3D y elegir un plano de boceto. Ahora dibujarás un rectángulo 2D y lo extruirás para crear un sólido 3D. Sus caras son sus superficies; las aristas son donde se unen las caras; los vértices son donde se unen las aristas.",
   "lesson.intro.outro.simple": "Ya conoces la habitación, las reglas y cómo mirar alrededor. ¡Ahora dibujarás un rectángulo en el suelo y lo levantarás para crear un bloque!",
   'lang.name': 'Español',
+  'app.building': 'Construyendo la geometría…',
   'app.loading': 'Cargando el motor CAD…',
   'app.loadFailed': 'No se pudo cargar el motor CAD: {msg}',
   'app.home': 'Vista inicial',

@@ -20,6 +20,7 @@ export default {
   "lesson.intro.outro": "Tu sais maintenant naviguer en 3D et choisir un plan d’esquisse. Ensuite, dessine un rectangle 2D et extrude-le pour créer un solide 3D. Ses faces sont ses surfaces ; ses arêtes sont les lignes où les faces se rencontrent ; ses sommets sont les points où les arêtes se rencontrent.",
   "lesson.intro.outro.simple": "Tu connais la pièce, les règles et les commandes pour regarder autour de toi. Ensuite, tu dessineras un rectangle sur le sol et tu le tireras vers le haut pour faire un bloc !",
   'lang.name': 'Français',
+  'app.building': 'Construction de la géométrie…',
   'app.loading': 'Chargement du moteur de CAO…',
   'app.loadFailed': 'Impossible de charger le moteur de CAO : {msg}',
   'app.home': 'Vue d’accueil',

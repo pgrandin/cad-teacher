@@ -411,4 +411,34 @@ for (const c of COURSES) assert.ok(en[`course.${c}.title`], `course ${c}: title`
 for (const k of Object.keys(en).filter(k => /^(course\.\w+\.intro|lesson\.[\w-]+\.(intro|outro)|term\.\w+\.def)$/.test(k))) assert.ok(en[k + '.simple'], `simple words: ${k}`);
 for (const file of ['./cad.js', './assembly.js'])
   for (const [k] of readFileSync(new URL(file, import.meta.url), 'utf8').matchAll(/err\.\w+/g)) assert.ok(k in en, `missing ${k}`);
+// Cached prefixes retain pattern tools even if the pattern is added after the first build.
+{
+  const cache = [], fs = [
+    { id: 'cache-sk', type: 'sketch', plane: { base: 'XY' }, shapes: [{ kind: 'circle', x: 0, y: 0, d: 4 }] },
+    { id: 'cache-ex', type: 'extrude', sketch: 'cache-sk', distance: 10, op: 'join' },
+  ];
+  cad.rebuild(fs, cache);
+  fs.push({ id: 'cache-p', type: 'pattern', of: 'cache-ex', kind: 'rect', nx: 2, ny: 1, nz: 1, dx: 10, dy: 0, dz: 0 });
+  let result = cad.rebuild(fs, cache);
+  assert.equal(result.reused, 2);
+  near(cad.metrics(result.body).volume, 2 * PI * 4 * 10);
+  fs[2].nx = 3;
+  result = cad.rebuild(fs, cache);
+  assert.equal(result.reused, 2);
+  near(cad.metrics(result.body).volume, 3 * PI * 4 * 10);
+  fs[0].shapes[0].d = 6;
+  result = cad.rebuild(fs, cache);
+  assert.equal(result.reused, 0);
+  near(cad.metrics(result.body).volume, 3 * PI * 9 * 10);
+  fs[1].distance = 0;
+  result = cad.rebuild(fs, cache);
+  assert.equal(result.errors['cache-ex'], 'err.zeroDistance');
+  fs[1].distance = 5;
+  result = cad.rebuild(fs, cache);
+  assert.deepEqual(result.errors, {});
+  near(cad.metrics(result.body).volume, 3 * PI * 9 * 5);
+  // Reading a shorter prefix must not consume the retained shapes or invalidate the suffix.
+  cad.rebuild(fs.slice(0, 2), cache).body.clone().translate([1, 0, 0]);
+  assert.equal(cad.rebuild(fs, cache).reused, 3);
+}
 console.log('ok');

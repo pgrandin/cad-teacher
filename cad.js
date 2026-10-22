@@ -212,19 +212,27 @@ function patternCopies(tool, f) {
 const FAIL = { extrude: 'err.extrudeFailed', revolve: 'err.revolveFailed', fillet: 'err.filletFailed', chamfer: 'err.chamferFailed', hole: 'err.holeFailed', pattern: 'err.patternFailed', thread: 'err.threadFailed' };
 
 // Replays the timeline. A failing feature is skipped and reported, like a red item in Fusion.
-export function rebuild(features) {
-  let body = null;
-  const errors = {}, planes = {}, tools = {};
-  const patterned = new Set(features.filter(f => f.type === 'pattern').map(f => f.of));
-  // Booleans consume their inputs, so keep a copy of the tool when a pattern will need it later.
+export function rebuild(features, cache = []) {
+  // Snapshot every prefix, including its pattern tools and resolved sketch planes. A changed
+  // sketch invalidates its users even in an imported timeline that references a later sketch.
+  const keyOf = f => JSON.stringify({ ...f, name: undefined });
+  const keys = features.map(f => keyOf(f) + (f.sketch ? keyOf(features.find(s => s.id === f.sketch) || {}) : ''));
+  let reused = 0;
+  while (reused < features.length && cache[reused]?.key === keys[reused]) reused++;
+  if (reused < features.length) cache.length = reused;
+  const prior = cache[reused - 1];
+  let body = prior?.body || null;
+  const errors = { ...prior?.errors }, planes = { ...prior?.planes }, tools = { ...prior?.tools };
+  // A later edit may introduce a pattern, so retain tools even before they are referenced.
   const apply = (f, solid, op) => {
-    if (patterned.has(f.id)) tools[f.id] = { solid: solid.clone(), op };
+    tools[f.id] = { solid: solid.clone(), op };
     if (op === 'cut') {
       if (!body) throw new Error('err.nothingToCut');
       body = clean(body.cut(solid));
     } else body = clean(body ? body.fuse(solid) : solid); // a lone cylinder comes in two halves until cleaned
   };
-  for (const f of features) {
+  for (let i = reused; i < features.length; i++) {
+    const f = features[i];
     try {
       if (f.type === 'sketch') {
         planes[f.id] = resolvePlane(f.plane, body);
@@ -259,9 +267,12 @@ export function rebuild(features) {
     } catch (e) {
       errors[f.id] = e instanceof Error && e.message.startsWith('err.') ? e.message : FAIL[f.type] || 'err.failed';
     }
+    cache[i] = { key: keys[i], body, errors: { ...errors }, planes: { ...planes }, tools: { ...tools } };
   }
-  return { body, errors, planes };
+  return { body, errors, planes, reused };
 }
+
+export const deserialize = data => data ? R.deserializeShape(data) : null;
 
 export function metrics(body) {
   if (!body) return null;
