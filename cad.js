@@ -17,7 +17,8 @@ export const BASE_PLANES = { XY: [0, 0, 1], XZ: [0, -1, 0], YZ: [1, 0, 0] };
 // Sketch frame for a plane with normal n at offset d. Origin is the world origin projected
 // onto the plane, so sketch coordinates line up with world X/Y like in Fusion.
 export function planeFrom(n, d = 0) {
-  const u = Math.abs(n[2]) > 0.9 ? [1, 0, 0] : unit(cross([0, 0, 1], n));
+  n = unit(n);
+  const u = Math.abs(n[2]) > 0.9 ? unit(add([1, 0, 0], n, -n[0])) : unit(cross([0, 0, 1], n));
   return { o: n.map(x => x * d), u, v: cross(n, u), n };
 }
 
@@ -38,7 +39,8 @@ function findFace(body, ref) {
 export function resolvePlane(spec, body) {
   if (spec.base) return planeFrom(BASE_PLANES[spec.base]);
   if (!body) throw new Error('err.noBodyToSketch');
-  return planeFrom(spec.face.n, dot(spec.face.n, findFace(body, spec.face).center.toTuple()));
+  const face = findFace(body, spec.face), n = unit(face.normalAt().toTuple());
+  return planeFrom(n, dot(n, face.center.toTuple()));
 }
 
 export function faceRef(body, faceId) {

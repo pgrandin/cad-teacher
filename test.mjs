@@ -7,7 +7,7 @@ import { LESSONS, CHALLENGES, COURSES } from './lessons.js';
 import { LANGS } from './i18n.js';
 import { poses } from './assembly.js';
 import { overhangs, printMatrix } from './print.js';
-import { Vector3 } from './vendor/three.module.js';
+import { Matrix4, Plane, Ray, Vector3 } from './vendor/three.module.js';
 import { CUBE_VIEWS } from './view-cube.js';
 import { Solid } from './vendor/replicad.js';
 
@@ -30,6 +30,62 @@ const filletCut = (a, b, c, r) => {
 const KNIGHT_HEAD = [[-9, 7], [9, 7], [6, 15], [14, 22], [15, 27], [6, 34], [3, 40], [-1, 35], [-7, 30], [-10, 18]];
 // Material a thread removes: a triangle 0.4·p deep and 0.8·p wide, spun around at its centroid, len/p turns.
 const threadCut = (r, p, len, out) => (0.4 * p) ** 2 * 2 * PI * (r + (out ? -1 : 1) * 0.4 * p / 3) * len / p;
+
+// Frames preserve the standard sketch axes and stay orthonormal for shallow/near-axis normals.
+const V = a => new Vector3(...a);
+for (const [base, u, v] of [['XY', [1, 0, 0], [0, 1, 0]], ['XZ', [1, 0, 0], [0, 0, 1]], ['YZ', [0, 1, 0], [0, 0, 1]]]) {
+  const pl = cad.resolvePlane({ base });
+  assert.ok(V(pl.u).distanceTo(V(u)) < 1e-12 && V(pl.v).distanceTo(V(v)) < 1e-12, `${base} orientation`);
+}
+for (const n of [...Object.values(cad.BASE_PLANES), [0, 0, -1], [2, 0, 10], [-2, 1, 10], [2, -1, -10],
+  [1e-12, -1e-12, 1], [1e-12, 1, -1e-12], [-1, 1e-12, 1e-12]]) {
+  const pl = cad.planeFrom(n, 7), axes = [pl.u, pl.v, pl.n].map(V);
+  for (const axis of axes) assert.ok(Math.abs(axis.length() - 1) < 1e-12, `unit axis for ${n}`);
+  for (let i = 0; i < 3; i++) assert.ok(Math.abs(axes[i].dot(axes[(i + 1) % 3])) < 1e-12, `perpendicular axes for ${n}`);
+  assert.ok(axes[0].clone().cross(axes[1]).distanceTo(axes[2]) < 1e-12, `right-handed frame for ${n}`);
+  const point = V(pl.o).addScaledVector(axes[0], 20).addScaledVector(axes[1], 7);
+  assert.ok(Math.abs(point.dot(axes[2]) - 7) < 1e-12, `sketch point stays on plane for ${n}`);
+}
+
+// Real wedges in both slope directions: drawing/picking and the CAD kernel share the same frame.
+for (const slope of [1, -1]) {
+  const wedge = [
+    { type: 'sketch', id: 'w', plane: { base: 'XZ' }, shapes: [{ kind: 'poly', pts: [[0, 0], [20, 0], [20, 10 - 2 * slope], [0, 10 + 2 * slope]] }] },
+    { type: 'extrude', id: 'e', sketch: 'w', distance: 10, op: 'join' },
+  ];
+  const before = cad.rebuild(wedge);
+  assert.deepEqual(before.errors, {});
+  const face = before.body.faces.find(f => f.normalAt().toTuple()[2] > 0.9);
+  const ref = cad.faceRef(before.body, face.hashCode), pl = cad.resolvePlane({ face: ref }, before.body);
+  const n = V(face.normalAt().toTuple()), center = V(face.center.toTuple());
+  assert.ok(V(pl.n).distanceTo(n) < 1e-12, 'use the actual face normal, not the rounded saved reference');
+  const matrix = new Matrix4().makeBasis(V(pl.u), V(pl.v), V(pl.n)).setPosition(V(pl.o)); // planeGroup
+  const point = new Vector3(8, -5, 0).applyMatrix4(matrix);
+  assert.ok(Math.abs(point.clone().sub(center).dot(n)) < 1e-9, 'rendered sketch stays on the face');
+  const hit = new Ray(point.clone().addScaledVector(n, 30), n.clone().negate())
+    .intersectPlane(new Plane(V(pl.n), -V(pl.n).dot(V(pl.o))), new Vector3()).sub(V(pl.o)); // sketchCursor
+  assert.ok(Math.abs(hit.dot(V(pl.u)) - 8) < 1e-9 && Math.abs(hit.dot(V(pl.v)) + 5) < 1e-9, 'cursor recovers sketch coordinates');
+  const raised = cad.rebuild([...wedge,
+    { type: 'sketch', id: 's', plane: { face: ref }, shapes: [{ kind: 'rect', x: 8, y: -5, w: 4, h: 4 }] },
+    { type: 'extrude', id: 'r', sketch: 's', distance: 3, op: 'join' },
+  ]);
+  assert.deepEqual(raised.errors, {});
+  assert.ok(Math.abs(cad.metrics(raised.body).volume - cad.metrics(before.body).volume - 48) < 1e-6, 'sloped extrusion adds the full rectangle volume');
+  const vertices = cad.meshOf(raised.body).faces.vertices;
+  for (const x of [6, 10]) for (const y of [-7, -3]) {
+    const corner = new Vector3(x, y, 3).applyMatrix4(matrix);
+    let distance = Infinity;
+    for (let i = 0; i < vertices.length; i += 3) distance = Math.min(distance, corner.distanceTo(V(vertices.slice(i, i + 3))));
+    assert.ok(distance < 1e-6, 'extruded corner agrees with the rendered sketch');
+  }
+  const drilled = cad.rebuild([...wedge, { type: 'hole', id: 'h', face: ref, x: 8, y: -5, d: 2, depth: 2 }]);
+  assert.deepEqual(drilled.errors, {});
+  assert.ok(Math.abs(cad.metrics(before.body).volume - cad.metrics(drilled.body).volume - 2 * PI) < 1e-6, 'hole depth follows the face normal');
+  assert.ok(drilled.body.edges.some(e => {
+    const rim = cad.rimRef(drilled.body, e.hashCode);
+    return rim && V(rim.c).distanceTo(point) < 1e-6;
+  }), 'hole placement agrees with the picked sketch coordinates');
+}
 
 const expected = {
   block: 8000,
