@@ -23,7 +23,17 @@ Static site, no build step. The geometry is real B-rep CAD (OpenCascade through
 
 - Run locally: `python3 -m http.server -d .`, then open http://localhost:8000
 - Test the engine and every lesson goal: `node test.mjs`
-- Deploy: every push to `main` runs `.github/workflows/pages.yml`: tests, stamps the commit (shown in the
+- Test the browser workflows (Python 3.10+): create a virtual environment with
+  `python3 -m venv .venv`, activate it with `source .venv/bin/activate`, then run
+  `python -m pip install -r tests/browser/requirements.txt` and
+  `python -m playwright install --with-deps chromium`. Run
+  `python -m unittest discover -s tests/browser -p 'test_*.py' -v`.
+  The suite starts its own static server and gives each test a fresh browser context.
+  To use an existing Chromium installation, set `CHROMIUM_EXECUTABLE` to its absolute path.
+  Add regressions in `tests/browser/test_*.py` using `BrowserTest` from `support`;
+  `self.page` is the real app, and `self.import_design(features)` uploads through Open.
+- Pull requests run both test suites with read-only repository permissions. They cannot deploy.
+- Deploy: every push to `main` (or a manual run on `main`) runs `.github/workflows/pages.yml`: tests, stamps the commit (shown in the
   page footer), cache-busts the app files, and publishes to GitHub Pages.
 
 Explanations use Fusion's own words, with an "In simple words" fold-out under each one for younger
