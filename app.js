@@ -36,7 +36,7 @@ let showDiff = false;           // color what is missing (green) / extra (red) c
 const undoStack = [];
 let uid = 0;
 let building = false, buildRevision = 0, comparisonRevision = 0;
-let previewTimer;
+let previewTimer, openingRevision = 0;
 
 // ---------- 3D view ----------
 const view = $('#view');
@@ -563,20 +563,22 @@ async function enterSketch(index, feature, draft = {}) {
   refresh();
   try {
     const result = await requestGeometry(features.slice(0, index), { channel: 'preview' });
-    if (!result || sketch !== current) return;
+    if (!result || sketch !== current) return false;
     current.before = result;
     try { current.plane = cad.resolvePlane(feature.plane, result.body); } catch { /* keep XY if the face is gone */ }
   } catch {
-    if (sketch !== current) return;
+    if (sketch !== current) return false;
     sketch = null;
     flash(t('err.failed'));
-    return refresh();
+    refresh();
+    return false;
   }
   current.pending = false;
   sketchControls(true);
   useOrtho(true);
   current.picking ? home() : lookAtPlane(current.plane);
   refresh();
+  return true;
 }
 
 // Delete is finishSketch(false). A new sketch with nothing drawn is dropped either way.
@@ -641,6 +643,7 @@ function validImport(features) {
   });
 }
 async function openFile(file) {
+  const opening = ++openingRevision, context = lesson, modelRevision = buildRevision;
   let data, down;
   try {
     data = JSON.parse(await file.text());
@@ -654,8 +657,10 @@ async function openFile(file) {
       const length = Math.hypot(...down);
       down = down.map(x => x / length);
     }
-  } catch { return flash(t('err.badFile')); }
-  if (lesson) await openFree();
+  } catch { if (opening === openingRevision) flash(t('err.badFile')); return; }
+  if (opening !== openingRevision || lesson !== context || buildRevision !== modelRevision) return;
+  if (lesson && !await openFree()) return;
+  if (opening !== openingRevision || lesson) return;
   // Bad values show as red features, like in any timeline; anything worse is undone.
   try { await replaceDesign(data.features, down); } catch { undoLast(); flash(t('err.badFile')); }
 }
@@ -1130,14 +1135,15 @@ async function restoreWork(saved) {
   const restoring = loadingWork = {};
   try {
     renderLearn();
-    if (!await rebuildAll() || loadingWork !== restoring) return;
+    if (!await rebuildAll() || loadingWork !== restoring) return false;
     const draft = saved?.sketchDraft;
     if (!asm && draft?.feature?.type === 'sketch' && Number.isInteger(draft.index) && draft.index >= 0 &&
         (draft.index === features.length || features[draft.index]?.id === draft.feature.id)) {
       bumpUid([draft.feature]);
-      await enterSketch(draft.index, draft.feature, draft);
+      if (!await enterSketch(draft.index, draft.feature, draft)) return false;
     } else home();
     renderLearn();
+    return loadingWork === restoring;
   } finally {
     if (loadingWork === restoring) { loadingWork = false; saveWork(); }
   }
@@ -1156,7 +1162,7 @@ async function openFree(saved = loadWork('free')) {
   clear(goalGroup);
   clear(diffGroup);
   setAssembly(null);
-  await restoreWork(saved);
+  return await restoreWork(saved);
 }
 
 async function openLesson(def, challenge, fresh = false) {

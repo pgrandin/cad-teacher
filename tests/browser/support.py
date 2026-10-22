@@ -58,6 +58,7 @@ class BrowserTest(unittest.TestCase):
     def ready(self):
         expect(self.page.locator("#loading")).to_have_count(0, timeout=30000)
         expect(self.page.locator("#tools button").first).to_be_visible()
+        expect(self.page.locator("#view")).to_have_attribute("aria-busy", "false", timeout=60000)
 
     def import_design(self, features, **metadata):
         """Upload through Open; the caller waits for the expected accepted/rejected result."""
