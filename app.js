@@ -491,7 +491,7 @@ function startCommand(type, index = features.length, feature = null) {
 const updatePreview = () => { cmd.preview = cad.rebuild([...features.slice(0, cmd.index), cmd.feature]); };
 
 function commitCommand() {
-  if (!cmd || cmd.preview.errors[cmd.feature.id]) return;
+  if (!cmd || inputError() || cmd.preview.errors[cmd.feature.id]) return;
   pushUndo();
   features.splice(cmd.index, cmd.index < features.length ? 1 : 0, cmd.feature);
   cmd = null;
@@ -520,6 +520,7 @@ function enterSketch(index, feature) {
 
 // Delete is finishSketch(false). A new sketch with nothing drawn is dropped either way.
 function finishSketch(keep = true) {
+  if (keep && inputError()) return;
   const { index, feature } = sketch;
   const isNew = index === features.length, add = keep && (feature.shapes.length || !isNew) ? [feature] : [];
   if (add.length || !isNew) {
@@ -873,6 +874,13 @@ $('#tools').addEventListener('click', e => {
 // Text fields, not type=number: kids type "3,5" in fr/es/de, and number inputs drop that in some browsers.
 const showNum = v => Number(v).toLocaleString(lang, { useGrouping: false, maximumFractionDigits: 3 });
 const num = (label, value, attrs) => `<label>${t(label)}<input type="text" inputmode="decimal" value="${showNum(value)}" ${attrs}></label>`;
+const inputError = () => $('#dialog input:invalid')?.validationMessage || '';
+function numberValue(el) {
+  const value = el.value.trim().replace(',', '.');
+  const n = value ? Number(value) : NaN;
+  el.setCustomValidity(Number.isFinite(n) ? '' : t('err.numberFinite'));
+  return n;
+}
 const select = (label, k, value, options) =>
   `<label>${t(label)}<select data-k="${k}">${options.map(([v, text]) => `<option value="${esc(v)}"${v === value ? ' selected' : ''}>${text}</option>`).join('')}</select></label>`;
 const SHAPE_FIELDS = {
@@ -892,7 +900,7 @@ function renderDialog() {
       (s.kind === 'poly' ? `<p class="note">${t('sketch.corners', { n: s.pts.length })}</p>` : '') + '</fieldset>').join('');
     el.innerHTML = `<div class="dh">${t('tab.sketch')}<small>${nameAt(sketch.index, sketch.feature)}</small></div>
       <div class="db">${nameField(sketch.feature.name, autoName(sketch.index, 'sketch'))}<button data-act="replane" class="wide${sketch.picking ? ' on' : ''}">${t(sketch.picking ? 'dlg.cancel' : 'sketch.replane')}</button>
-      ${rows || `<p class="note">${t('sketch.empty')}</p>`}</div>
+      ${rows || `<p class="note">${t('sketch.empty')}</p>`}<p class="err" id="cmderr"></p></div>
       <div class="df"><button data-act="delete" class="danger">${t('dlg.delete')}</button><span></span><button data-act="finish" class="ok">${t('tool.finish')}</button></div>`;
     return;
   }
@@ -931,21 +939,28 @@ function renderDialog() {
 }
 function updateCmdError() {
   if (acmd) return updateAsmError();
+  if (sketch) {
+    $('#cmderr').textContent = inputError();
+    $('#dialog [data-act="finish"]').disabled = !!inputError();
+    return;
+  }
   if (!cmd) return;
   const err = cmd.preview.errors[cmd.feature.id];
-  $('#cmderr').textContent = err ? t(err) : '';
-  $('#okbtn').disabled = !!err;
+  $('#cmderr').textContent = inputError() || (err ? t(err) : '');
+  $('#okbtn').disabled = !!inputError() || !!err;
 }
 
 $('#dialog').addEventListener('input', e => {
   if (acmd) return asmInput(e.target);
   const el = e.target, k = el.dataset.k;
   if (!k) return;
-  const v = el.tagName === 'SELECT' || k === 'name' ? el.value.trim() : parseFloat(el.value.replace(',', '.'));
-  if (Number.isNaN(v)) return; // half-typed, like "-"
+  const text = el.tagName === 'SELECT' || k === 'name';
+  const v = text ? el.value.trim() : numberValue(el);
+  if (!text && !Number.isFinite(v)) return updateCmdError(); // keep the last preview while half-typed
   if (k === 'name') return void ((sketch || cmd).feature.name = v);
   if (sketch) {
     sketch.feature.shapes[+el.dataset.i][k] = v;
+    updateCmdError();
     drawSketches();
     checkLesson();
     draw();
@@ -1321,6 +1336,7 @@ function editJoint(i) {
 }
 
 function commitAsm() {
+  if (inputError()) return;
   if (acmd.kind === 'joint') {
     if (asm.errors[acmd.joint.id]) return;
     pushUndo();
@@ -1360,19 +1376,20 @@ function renderAsmDialog(el) {
 }
 function updateAsmError() {
   const err = acmd.kind === 'joint' && asm.errors?.[acmd.joint.id];
-  $('#cmderr').textContent = err && err !== 'err.jointPick' ? t(err) : ''; // still picking: the note says what to do
-  $('#okbtn').disabled = !!err;
+  $('#cmderr').textContent = inputError() || (err && err !== 'err.jointPick' ? t(err) : ''); // still picking: the note says what to do
+  $('#okbtn').disabled = !!inputError() || !!err;
 }
 function asmInput(el) {
-  const v = el.tagName === 'SELECT' || el.dataset.k === 'name' ? el.value.trim() : parseFloat(el.value.replace(',', '.'));
-  if (Number.isNaN(v)) return;
+  const text = el.tagName === 'SELECT' || el.dataset.k === 'name';
+  const v = text ? el.value.trim() : numberValue(el);
+  if (!text && !Number.isFinite(v)) return updateAsmError();
   if (el.dataset.j) {
     acmd.angles[el.dataset.j] = v;
     asm.driven = true;
   } else {
     acmd.joint[el.dataset.k] = v;
     // Keep the angle box and its slider in step.
-    if (el.dataset.k === 'angle') $('#dialog').querySelectorAll('[data-k="angle"]').forEach(x => { if (x !== el) x.value = x.type === 'range' ? v : showNum(v); });
+    if (el.dataset.k === 'angle') $('#dialog').querySelectorAll('[data-k="angle"]').forEach(x => { if (x !== el) { x.value = x.type === 'range' ? v : showNum(v); x.setCustomValidity(''); } });
   }
   drawAssembly();
   renderHint();

@@ -9,6 +9,7 @@ import { poses } from './assembly.js';
 import { overhangs, printMatrix } from './print.js';
 import { Vector3 } from './vendor/three.module.js';
 import { CUBE_VIEWS } from './view-cube.js';
+import { Solid } from './vendor/replicad.js';
 
 await cad.init(fileURLToPath(new URL('./vendor/replicad_single.wasm', import.meta.url)));
 const PI = Math.PI;
@@ -170,6 +171,44 @@ near(cad.metrics(goalBlock).volume, 8000); // inputs survive
 const bad = [...blockGoal, { type: 'fillet', id: 'x', edges: LESSONS.find(l => l.id === 'fillet').goal[2].edges, r: 50 }];
 assert.equal(cad.rebuild(bad).errors.x, 'err.filletFailed');
 near(cad.metrics(cad.rebuild(bad).body).volume, 8000);
+
+// Invalid imported pattern counts fail before any copies; the clone guard also keeps a regression bounded.
+const invalidPatterns = [];
+for (const n of [Infinity, -Infinity, NaN, 0, -1, 1.5, null, '2', Number.MAX_VALUE]) {
+  invalidPatterns.push([{ kind: 'circle', n }, 'err.patternCount']);
+  for (const axis of ['nx', 'ny', 'nz']) invalidPatterns.push([{ kind: 'rect', nx: 2, ny: 1, nz: 1, [axis]: n }, 'err.patternCount']);
+}
+invalidPatterns.push(
+  [{ kind: 'circle', n: 1 }, 'err.patternCount'],
+  [{ kind: 'rect', nx: 1, ny: 1, nz: 1 }, 'err.patternCount'],
+  ...[101, 1e9].map(n => [{ kind: 'circle', n }, 'err.patternLimit']),
+  [{ kind: 'rect', nx: 5, ny: 5, nz: 5 }, 'err.patternLimit'],
+  [{ kind: 'rect', nx: 100, ny: 100, nz: 100 }, 'err.patternLimit'],
+  [{ kind: 'rect', nx: 2, ny: 1, dx: Infinity }, 'err.numberFinite'],
+  [{ kind: 'rect', nx: 2, ny: 1, dz: null }, 'err.numberFinite'],
+);
+const cloneSolid = Solid.prototype.clone;
+try {
+  for (const [params, error] of invalidPatterns) {
+    let clones = 0;
+    Solid.prototype.clone = function () {
+      if (++clones > 1) throw Error('pattern copy attempted before validation');
+      return cloneSolid.call(this); // first clone saves the source feature, before reaching the pattern
+    };
+    const result = cad.rebuild([...blockGoal, { type: 'pattern', id: 'p', of: blockGoal[1].id, dx: 50, dy: 50, ...params }]);
+    assert.deepEqual(result.errors, { p: error });
+    assert.equal(clones, 1, 'invalid pattern must not allocate copies');
+    near(cad.metrics(result.body).volume, 8000);
+  }
+} finally { Solid.prototype.clone = cloneSolid; }
+// Old rectangular designs omit Z; their default is still one layer.
+near(vol([...blockGoal, { type: 'pattern', id: 'p', of: blockGoal[1].id, kind: 'rect', nx: 2, ny: 1, dx: 50, dy: 50 }]), 16000);
+// The upper bound is inclusive in both modes. Coincident cylinder copies keep this check cheap.
+for (const params of [{ kind: 'circle', n: 100 }, { kind: 'rect', nx: 5, ny: 5, nz: 4, dx: 0, dy: 0, dz: 0 }]) {
+  const result = cad.rebuild([...rod, { type: 'pattern', id: 'p', of: 'e', ...params }]);
+  assert.deepEqual(result.errors, {});
+  near(cad.metrics(result.body).volume, PI * 25 * 20);
+}
 
 // Sketch on a side face (normal -Y) and a closed polyline.
 const side = [...blockGoal,
