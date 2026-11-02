@@ -67,3 +67,16 @@ class DesignWorkflowTests(BrowserTest):
         self.ready()
         self.page.locator('[data-open="hole"]').click()
         expect(self.page.locator("#learn .win")).to_be_visible()
+
+    def test_long_timeline_scrolls_instead_of_widening_the_page(self):
+        sketches = [
+            {"id": f"s{i}", "type": "sketch", "plane": {"base": "XY"},
+             "shapes": [{"kind": "rect", "x": i * 30, "y": 0, "w": 20, "h": 10}]}
+            for i in range(40)
+        ]
+        self.import_design(sketches)
+        expect(self.page.locator("#chips .chip")).to_have_count(40)
+        width = self.page.evaluate("innerWidth")
+        for selector in ("main", "#view", "footer", "#version"):
+            box = self.page.locator(selector).bounding_box()
+            self.assertLessEqual(box["x"] + box["width"], width + 0.5, selector)
