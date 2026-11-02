@@ -10,7 +10,7 @@
   :root { --blue: #0696d7; --ink: #262b30; --muted: #6b757d; --bar: #f4f5f6; --line: #d3d7da; --dark: #2b3036; --warn: #d93a2b; --ok: #2e9e4f; }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { display: grid; grid-template-rows: auto 1fr auto; font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bar); overflow: hidden; }
+  body { display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bar); overflow: hidden; }
   button { font: inherit; }
 
   header { display: flex; border-bottom: 1px solid var(--line); }
